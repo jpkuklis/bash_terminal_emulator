@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Exercise Scenario Admin & Randomization Suite</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #e2e8f0; }
+    .code-font { font-family: 'Fira Code', monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0ea5e9; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+
+  <header class="h-14 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between shrink-0 shadow-lg z-30">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold">
+        <i class="fa-solid fa-sliders text-sm"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+          Scenario Designer & Anti-Cheat Suite
+          <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded font-mono font-semibold">v3.0 ADMIN</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Design, construct, obfuscate, and dynamically randomize cyber enclave scenarios</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <a href="index.html" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-2 border border-cyan-700/60 transition-colors shadow-md">
+        <i class="fa-solid fa-terminal text-cyan-400"></i> Launch Terminal Environment
+      </a>
+
+      <div class="flex items-center bg-slate-950 px-3 py-1 rounded border border-slate-800 space-x-2 text-xs">
+        <span class="text-slate-400">Preset:</span>
+        <select id="preset-selector" onchange="AdminApp.loadPresetScenario(this.value)" class="bg-transparent text-cyan-300 font-semibold outline-none cursor-pointer">
+          <option value="regresshion" class="bg-slate-900 text-slate-200">1. regreSSHion (CVE-2024-6387)</option>
+          <option value="ligolo" class="bg-slate-900 text-slate-200">2. Ligolo-ng C2 Pivot</option>
+          <option value="log4shell" class="bg-slate-900 text-slate-200">3. Log4Shell JNDI Injection</option>
+          <option value="net_pivot" class="bg-slate-900 text-slate-200">4. Net Pivot & Persistence</option>
+        </select>
+      </div>
+
+      <button onclick="document.getElementById('import-file-input').click()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors">
+        <i class="fa-solid fa-file-import text-purple-400"></i> Import .scenario
+      </button>
+      <input type="file" id="import-file-input" class="hidden" accept=".scenario,.json" onchange="AdminApp.handleFileImport(event)">
+
+      <button onclick="AdminApp.showExportModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-cyan-950">
+        <i class="fa-solid fa-download"></i> Export .scenario
+      </button>
+    </div>
+  </header>
+
+  <div id="toast-container" class="fixed top-16 right-6 z-[120] space-y-2 pointer-events-none"></div>
+
+  <div class="bg-slate-950 border-b border-slate-800 px-6 flex space-x-1 shrink-0 text-xs font-semibold">
+    <button onclick="AdminApp.switchTab('meta')" id="tab-btn-meta" class="admin-tab px-4 py-2.5 text-cyan-400 border-b-2 border-cyan-400 flex items-center gap-2">
+      <i class="fa-solid fa-file-pen"></i> Metadata & Objectives
+    </button>
+    <button onclick="AdminApp.switchTab('random')" id="tab-btn-random" class="admin-tab px-4 py-2.5 text-amber-400 hover:text-amber-300 flex items-center gap-2">
+      <i class="fa-solid fa-dice-d20 text-amber-400"></i> Anti-Cheat Engine
+    </button>
+    <button onclick="AdminApp.switchTab('net')" id="tab-btn-net" class="admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2">
+      <i class="fa-solid fa-network-wired"></i> Network Interfaces
+    </button>
+    <button onclick="AdminApp.switchTab('vfs')" id="tab-btn-vfs" class="admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2">
+      <i class="fa-solid fa-folder-tree"></i> Filesystem (VFS)
+    </button>
+    <button onclick="AdminApp.switchTab('procs')" id="tab-btn-procs" class="admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2">
+      <i class="fa-solid fa-microchip"></i> Process Table
+    </button>
+    <button onclick="AdminApp.switchTab('sockets')" id="tab-btn-sockets" class="admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2">
+      <i class="fa-solid fa-plug"></i> Sockets & C2
+    </button>
+    <button onclick="AdminApp.switchTab('firewall')" id="tab-btn-firewall" class="admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2">
+      <i class="fa-solid fa-shield"></i> Firewall Rules
+    </button>
+  </div>
+
+  <main class="flex-1 overflow-y-auto p-6 bg-slate-950">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+      <!-- TAB 1: METADATA & OBJECTIVES -->
+      <div id="tab-content-meta" class="tab-page space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-slate-900 p-5 rounded-lg border border-slate-800 space-y-4 shadow-md">
+            <h2 class="text-sm font-bold text-cyan-400 border-b border-slate-800 pb-2 flex items-center gap-2">
+              <i class="fa-solid fa-circle-info"></i> Exercise Information
+            </h2>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Scenario Title</label>
+              <input type="text" id="meta-title" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Difficulty</label>
+                <select id="meta-difficulty" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-white outline-none">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                  <option value="Expert">Expert</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Root Solution Flag</label>
+                <input type="text" id="meta-flag" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-emerald-400 code-font outline-none focus:border-emerald-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Scenario Description</label>
+              <textarea id="meta-desc" rows="4" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-500"></textarea>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 p-5 rounded-lg border border-slate-800 space-y-4 shadow-md">
+            <h2 class="text-sm font-bold text-cyan-400 border-b border-slate-800 pb-2 flex items-center gap-2">
+              <i class="fa-solid fa-list-check"></i> Student Guidance & Objectives
+            </h2>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Objectives (One per line)</label>
+              <textarea id="meta-objectives" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 code-font outline-none focus:border-cyan-500"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Hints (One per line)</label>
+              <textarea id="meta-hints" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-amber-300 code-font outline-none focus:border-cyan-500"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: ANTI-CHEAT RANDOMIZATION ENGINE -->
+      <div id="tab-content-random" class="tab-page hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-900 border border-amber-900/60 p-6 rounded-xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div class="space-y-1">
+            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2.5">
+              <i class="fa-solid fa-dice-d20 text-2xl text-amber-400 animate-pulse"></i> Anti-Cheat Variation & Jitter Engine
+            </h2>
+            <p class="text-xs text-slate-300 max-w-2xl leading-relaxed">
+              Dynamically randomize process PIDs, PPIDs, CPU/MEM footprints, foreign C2 IPs, ephemeral client ports, user UIDs/GIDs in <code class="text-amber-300 font-mono">/etc/passwd</code>, background cron jobs, and root flag hashes to eliminate answer sharing.
+            </p>
+          </div>
+          <button onclick="AdminApp.executeFullRandomization()" class="shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs px-5 py-3 rounded-lg shadow-lg flex items-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-95">
+            <i class="fa-solid fa-wand-magic-sparkles text-base"></i> SHUFFLE ENTIRE EXERCISE INSTANCE
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors shadow-md">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-microchip text-sm"></i> Process & Memory Jitter
+                </span>
+                <span class="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded border border-cyan-800 font-mono">PIDs/CPU/MEM</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-normal">
+                Shuffles PIDs, PPIDs, %CPU usage, %MEM allocation, VIRT/RES memory footprints, and runtime ticks.
+              </p>
+            </div>
+            <button onclick="AdminApp.randomizePIDsAndResources()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-between transition-colors">
+              <span>Randomize PIDs & Memory</span>
+              <i class="fa-solid fa-arrows-rotate text-cyan-400"></i>
+            </button>
+          </div>
+
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors shadow-md">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-network-wired text-sm"></i> Socket & IP Jitter
+                </span>
+                <span class="text-[10px] bg-amber-950 text-amber-400 px-2 py-0.5 rounded border border-amber-800 font-mono">Netstat</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-normal">
+                Generates random external C2 / SSH remote IPv4 addresses, high ephemeral client ports, and state parameters.
+              </p>
+            </div>
+            <button onclick="AdminApp.randomizeNetstatSockets()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-between transition-colors">
+              <span>Shuffle Foreign IPs & Ports</span>
+              <i class="fa-solid fa-shuffle text-amber-400"></i>
+            </button>
+          </div>
+
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors shadow-md">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-users-gear text-sm"></i> Users & Cron Jitter
+                </span>
+                <span class="text-[10px] bg-purple-950 text-purple-400 px-2 py-0.5 rounded border border-purple-800 font-mono">passwd/cron</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-normal">
+                Jitters user UIDs/GIDs in <code class="text-purple-300">/etc/passwd</code> and injects dynamic cron tasks into <code class="text-purple-300">/etc/crontab</code>.
+              </p>
+            </div>
+            <button onclick="AdminApp.randomizeUsersAndCron()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-between transition-colors">
+              <span>Shuffle Users & Crontab</span>
+              <i class="fa-solid fa-user-shield text-purple-400"></i>
+            </button>
+          </div>
+
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors shadow-md">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-key text-sm"></i> Flag Cryptography
+                </span>
+                <span class="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded border border-emerald-800 font-mono">/root/flag.txt</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-normal">
+                Generates a fresh cryptographic root flag hash and automatically syncs it into <code class="text-emerald-300">/root/flag.txt</code>.
+              </p>
+            </div>
+            <button onclick="AdminApp.generateFreshFlag()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-between transition-colors">
+              <span>Generate Fresh Flag Hash</span>
+              <i class="fa-solid fa-key text-emerald-400"></i>
+            </button>
+          </div>
+
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4 shadow-md">
+            <h3 class="text-sm font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center justify-between">
+              <span><i class="fa-solid fa-sliders text-cyan-400 me-2"></i> Master Batch Rules</span>
+              <span class="text-[10px] text-slate-400">Applies during "Shuffle Entire"</span>
+            </h3>
+
+            <div class="space-y-3 text-xs">
+              <label class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+                <div class="space-y-0.5">
+                  <span class="font-bold text-slate-200 block">Shuffle Process PIDs & Memory</span>
+                  <span class="text-[10px] text-slate-400 block">Jitters PID, PPID, %CPU, %MEM, VIRT/RES memory</span>
+                </div>
+                <input type="checkbox" id="rand-opt-pids" checked class="rounded bg-slate-900 border-slate-700 text-cyan-500 w-4 h-4">
+              </label>
+
+              <label class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+                <div class="space-y-0.5">
+                  <span class="font-bold text-slate-200 block">Randomize C2 Remote Endpoints</span>
+                  <span class="text-[10px] text-slate-400 block">Generates realistic public WAN addresses for socket listeners</span>
+                </div>
+                <input type="checkbox" id="rand-opt-ips" checked class="rounded bg-slate-900 border-slate-700 text-cyan-500 w-4 h-4">
+              </label>
+
+              <label class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+                <div class="space-y-0.5">
+                  <span class="font-bold text-slate-200 block">Shuffle Users & System Crontabs</span>
+                  <span class="text-[10px] text-slate-400 block">Randomizes UIDs/GIDs in /etc/passwd and cron schedules</span>
+                </div>
+                <input type="checkbox" id="rand-opt-users" checked class="rounded bg-slate-900 border-slate-700 text-cyan-500 w-4 h-4">
+              </label>
+
+              <label class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+                <div class="space-y-0.5">
+                  <span class="font-bold text-slate-200 block">Generate Unique Solution Flag</span>
+                  <span class="text-[10px] text-slate-400 block">Generates <code class="text-emerald-400">FLAG{scenario_<hash>}</code> and updates /root/flag.txt</span>
+                </div>
+                <input type="checkbox" id="rand-opt-flag" checked class="rounded bg-slate-900 border-slate-700 text-cyan-500 w-4 h-4">
+              </label>
+            </div>
+
+            <button onclick="AdminApp.injectNoiseProcessesAndSockets()" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-700 text-emerald-400 font-bold text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow">
+              <i class="fa-solid fa-plus-circle text-sm"></i> Inject Synthetic Background Noise (Procs & Sockets)
+            </button>
+          </div>
+
+          <div class="lg:col-span-2 bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4 shadow-md flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                  <i class="fa-solid fa-eye text-amber-400"></i> Live Scenario Variant Inspector
+                </h3>
+                <span id="rand-inspector-status" class="text-[11px] font-mono text-emerald-400 bg-emerald-950 border border-emerald-800 px-2.5 py-0.5 rounded">Synchronized</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                
+                <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-2">
+                  <span class="text-cyan-400 font-bold text-[11px] block border-b border-slate-800 pb-1 flex justify-between">
+                    <span>Process Table Summary</span>
+                    <span id="rand-insp-proc-count" class="text-slate-400">0 Processes</span>
+                  </span>
+                  <div id="rand-insp-proc-list" class="space-y-1 text-[11px] text-slate-300 max-h-36 overflow-y-auto"></div>
+                </div>
+
+                <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-2">
+                  <span class="text-amber-400 font-bold text-[11px] block border-b border-slate-800 pb-1 flex justify-between">
+                    <span>Sockets & Remote C2 Endpoints</span>
+                    <span id="rand-insp-sock-count" class="text-slate-400">0 Sockets</span>
+                  </span>
+                  <div id="rand-insp-sock-list" class="space-y-1 text-[11px] text-slate-300 max-h-36 overflow-y-auto"></div>
+                </div>
+
+              </div>
+
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-emerald-400 font-bold">Active Solution Flag Hash:</span>
+                  <span class="text-[10px] text-slate-500 font-mono">Synced to /root/flag.txt</span>
+                </div>
+                <div id="rand-insp-flag" class="text-sm font-bold text-emerald-300 code-font tracking-wide bg-slate-900 p-2 rounded border border-slate-800">
+                  FLAG{regreSSHion_2024_rce_pwned}
+                </div>
+              </div>
+
+            </div>
+
+            <p class="text-[11px] text-slate-500 italic border-t border-slate-800/80 pt-2">
+              Note: When exported in "Student Mode (Obfuscated)", all parameters shown above are encrypted with an XOR cipher. Students will experience these exact randomized values without access to static answer keys.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- TAB 3: NETWORK INTERFACES -->
+      <div id="tab-content-net" class="tab-page hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-cyan-400">Network Interfaces & Dynamic RX/TX Traffic Rates</h2>
+          <button onclick="AdminApp.addInterface()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded font-bold border border-slate-700 text-cyan-300">
+            <i class="fa-solid fa-plus me-1"></i> Add Interface
+          </button>
+        </div>
+        <div class="overflow-x-auto border border-slate-800 rounded">
+          <table class="w-full text-left text-xs code-font">
+            <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-2.5">Interface</th><th class="p-2.5">IPv4 Address</th><th class="p-2.5">Netmask</th><th class="p-2.5">MAC Address</th>
+                <th class="p-2.5">Init RX (Bytes)</th><th class="p-2.5">Init TX (Bytes)</th><th class="p-2.5">RX Rate/Cmd</th><th class="p-2.5">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="net-table-body" class="divide-y divide-slate-800 bg-slate-950 text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: VIRTUAL FILESYSTEM (VFS) -->
+      <div id="tab-content-vfs" class="tab-page hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3">
+            <h2 class="text-sm font-bold text-cyan-400 border-b border-slate-800 pb-2">Virtual Filesystem Tree</h2>
+            <div id="vfs-tree-container" class="code-font text-xs space-y-1 overflow-y-auto max-h-96 text-slate-300"></div>
+          </div>
+          <div class="md:col-span-2 bg-slate-900 p-5 rounded-lg border border-slate-800 space-y-4">
+            <h2 class="text-sm font-bold text-cyan-400 border-b border-slate-800 pb-2">Node Property Editor</h2>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="block text-slate-400 mb-1">Target Absolute Path</label>
+                <input type="text" id="vfs-path" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 code-font text-white outline-none focus:border-cyan-500" placeholder="/var/log/custom.log">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Node Type</label>
+                <select id="vfs-type" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 code-font text-white outline-none">
+                  <option value="file">File</option>
+                  <option value="dir">Directory</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Permissions (chmod string)</label>
+                <input type="text" id="vfs-perm" class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 code-font text-white outline-none" value="rw-r--r--">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Owner / Group</label>
+                <div class="flex gap-2">
+                  <input type="text" id="vfs-owner" class="w-1/2 bg-slate-950 border border-slate-800 rounded px-2 py-1 code-font text-white outline-none" value="root">
+                  <input type="text" id="vfs-group" class="w-1/2 bg-slate-950 border border-slate-800 rounded px-2 py-1 code-font text-white outline-none" value="root">
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">File Contents</label>
+              <textarea id="vfs-content" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-xs code-font text-emerald-300 outline-none focus:border-emerald-500"></textarea>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+              <button onclick="AdminApp.deleteVfsNode()" class="bg-red-900/60 hover:bg-red-800 text-red-200 text-xs px-3 py-1.5 rounded font-bold">Delete Node</button>
+              <button onclick="AdminApp.saveVfsNode()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-4 py-1.5 rounded font-bold">Save Node</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: PROCESS TABLE -->
+      <div id="tab-content-procs" class="tab-page hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-cyan-400">Simulated Process Table (ps aux / top / htop)</h2>
+          <button onclick="AdminApp.addProcess()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded font-bold border border-slate-700 text-cyan-300">
+            <i class="fa-solid fa-plus me-1"></i> Add Process
+          </button>
+        </div>
+        <div class="overflow-x-auto border border-slate-800 rounded">
+          <table class="w-full text-left text-xs code-font">
+            <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-2.5">PID</th><th class="p-2.5">PPID</th><th class="p-2.5">USER</th><th class="p-2.5">%CPU</th><th class="p-2.5">%MEM</th><th class="p-2.5">STAT</th><th class="p-2.5">COMMAND</th><th class="p-2.5">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="procs-table-body" class="divide-y divide-slate-800 bg-slate-950 text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 6: SOCKETS & C2 -->
+      <div id="tab-content-sockets" class="tab-page hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-cyan-400">Active Network Sockets (netstat -tulnp)</h2>
+          <button onclick="AdminApp.addSocket()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded font-bold border border-slate-700 text-cyan-300">
+            <i class="fa-solid fa-plus me-1"></i> Add Socket
+          </button>
+        </div>
+        <div class="overflow-x-auto border border-slate-800 rounded">
+          <table class="w-full text-left text-xs code-font">
+            <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-2.5">Proto</th><th class="p-2.5">Local Address</th><th class="p-2.5">Foreign Address</th><th class="p-2.5">State</th><th class="p-2.5">PID/Program</th><th class="p-2.5">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sockets-table-body" class="divide-y divide-slate-800 bg-slate-950 text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 7: FIREWALL RULES -->
+      <div id="tab-content-firewall" class="tab-page hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
+            <h2 class="text-sm font-bold text-cyan-400">iptables Filter Table</h2>
+            <textarea id="iptables-filter" rows="12" class="w-full bg-slate-950 border border-slate-800 rounded p-2.5 code-font text-xs text-emerald-300 outline-none focus:border-cyan-500"></textarea>
+          </div>
+          <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
+            <h2 class="text-sm font-bold text-cyan-400">iptables Mangle & NAT Table</h2>
+            <textarea id="iptables-mangle" rows="12" class="w-full bg-slate-950 border border-slate-800 rounded p-2.5 code-font text-xs text-emerald-300 outline-none focus:border-cyan-500"></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- EXPORT MODAL -->
+  <div id="export-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 p-6 rounded-lg shadow-2xl max-w-md w-full font-mono text-sm space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h2 class="text-cyan-400 font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-file-export"></i> Export .scenario Package</h2>
+        <button onclick="AdminApp.closeExportModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div>
+        <label class="block text-slate-400 text-xs uppercase mb-1">Export File Title:</label>
+        <input type="text" id="export-title" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-1.5 rounded outline-none text-xs focus:border-cyan-500" value="Custom Cyber Scenario">
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded border border-slate-800 space-y-2">
+        <label class="flex items-start space-x-2.5 cursor-pointer">
+          <input type="checkbox" id="export-obfuscate" class="mt-0.5" checked>
+          <div>
+            <span class="text-xs font-bold text-slate-200 block">Student Mode (Obfuscated)</span>
+            <span class="text-[10px] text-slate-400 leading-tight block">Encrypts the scenario payload using XOR+Base64 cipher to prevent DOM inspection or flag cheating.</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="AdminApp.closeExportModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-bold">Cancel</button>
+        <button onclick="AdminApp.downloadScenarioFile()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-bold shadow-lg">Download File</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CIPHER_KEY = "WebOS_Cyber_2026_Training_Enclave";
+
+    function encodeScenario(obj) {
+      const jsonStr = JSON.stringify(obj);
+      const encoded = encodeURIComponent(jsonStr);
+      let xored = '';
+      for (let i = 0; i < encoded.length; i++) {
+        xored += String.fromCharCode(encoded.charCodeAt(i) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length));
+      }
+      return btoa(xored);
+    }
+
+    function decodeScenario(b64Str) {
+      const xored = atob(b64Str);
+      let decoded = '';
+      for (let i = 0; i < xored.length; i++) {
+        decoded += String.fromCharCode(xored.charCodeAt(i) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length));
+      }
+      return JSON.parse(decodeURIComponent(decoded));
+    }
+
+    const AdminApp = {
+      activeTab: 'meta',
+      scenarioData: {
+        metadata: {
+          title: "CVE-2024-6387 regreSSHion",
+          difficulty: "Advanced",
+          description: "OpenSSH Signal Handler Race Condition vulnerability leading to unauthenticated RCE as root.",
+          objectives: ["Analyze running OpenSSH processes in ps aux", "Locate vulnerable glibc/sshd memory mapping in auth.log", "Exfiltrate proof flag from /root/flag.txt"],
+          hints: ["Check auth.log in /var/log", "Investigate high CPU process PID 14502"],
+          flag: "FLAG{regreSSHion_2024_rce_pwned}"
+        },
+        interfaces: [
+          { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1420, tx_bytes: 1420, rx_packets: 14, tx_packets: 14, rx_rate: 100, tx_rate: 100 },
+          { name: 'eth0', flags: 'UP,BROADCAST,RUNNING,MULTICAST', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 142050, tx_bytes: 98120, rx_packets: 1240, tx_packets: 980, rx_rate: 1420, tx_rate: 840 }
+        ],
+        procs: [
+          { pid: 1, ppid: 0, user: 'root', pr: 20, ni: 0, virt: 16840, res: 4120, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:02', cmd: '/sbin/init' },
+          { pid: 2, ppid: 0, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kthreadd]' },
+          { pid: 3, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_gp]' },
+          { pid: 4, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_par_gp]' },
+          { pid: 6, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kworker/0:0H-events_highpri]' },
+          { pid: 9, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[mm_percpu_wq]' },
+          { pid: 10, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:01', cmd: '[ksoftirqd/0]' },
+          { pid: 11, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:03', cmd: '[rcu_sched]' },
+          { pid: 12, ppid: 2, user: 'root', pr: -100, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[migration/0]' },
+          { pid: 14, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kdevtmpfs]' },
+          { pid: 18, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kauditd]' },
+          { pid: 22, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[writeback]' },
+          { pid: 26, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kcompactd0]' },
+          { pid: 28, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'SN', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[khugepaged]' },
+          { pid: 312, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 28900, res: 9810, s: 'Ss', cpu: 0.1, mem: 0.5, time: '0:04', cmd: '/lib/systemd/systemd-journald' },
+          { pid: 348, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 22100, res: 6420, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: '/lib/systemd/systemd-udevd' },
+          { pid: 480, ppid: 1, user: 'systemd-timesync', pr: 20, ni: 0, virt: 18400, res: 3120, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/lib/systemd/systemd-timesyncd' },
+          { pid: 512, ppid: 1, user: 'systemd-resolve', pr: 20, ni: 0, virt: 24300, res: 8900, s: 'Ssl', cpu: 0.1, mem: 0.4, time: '0:02', cmd: '/lib/systemd/systemd-resolved' },
+          { pid: 620, ppid: 1, user: 'syslog', pr: 20, ni: 0, virt: 224100, res: 4890, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/rsyslogd -n -iNONE' },
+          { pid: 680, ppid: 1, user: 'messagebus', pr: 20, ni: 0, virt: 12400, res: 4100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/usr/bin/dbus-daemon --system' },
+          { pid: 710, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 10400, res: 2890, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:00', cmd: '/usr/sbin/cron -f' },
+          { pid: 740, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 42100, res: 7420, s: 'Ssl', cpu: 0.0, mem: 0.4, time: '0:00', cmd: '/usr/libexec/accountsservice-daemon' },
+          { pid: 890, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 22400, res: 5100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/sshd -D' },
+          { pid: 910, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 48200, res: 12400, s: 'Ssl', cpu: 0.1, mem: 0.6, time: '0:03', cmd: '/usr/bin/python3 /usr/bin/fail2ban-server' },
+          { pid: 1020, ppid: 1, user: 'postfix', pr: 20, ni: 0, virt: 38400, res: 6100, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:00', cmd: '/usr/lib/postfix/master -w' },
+          { pid: 1150, ppid: 1, user: 'www-data', pr: 20, ni: 0, virt: 184500, res: 14200, s: 'Ss', cpu: 0.2, mem: 0.7, time: '0:05', cmd: '/usr/sbin/apache2 -k start' },
+          { pid: 1210, ppid: 1, user: 'redis', pr: 20, ni: 0, virt: 62100, res: 11400, s: 'Ssl', cpu: 0.1, mem: 0.5, time: '0:02', cmd: '/usr/bin/redis-server 127.0.0.1:6379' },
+          { pid: 1410, ppid: 890, user: 'root', pr: 20, ni: 0, virt: 24100, res: 7200, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: 'sshd: guest [priv]' },
+          { pid: 1415, ppid: 1410, user: 'guest', pr: 20, ni: 0, virt: 24100, res: 4800, s: 'S', cpu: 0.0, mem: 0.2, time: '0:00', cmd: 'sshd: guest@pts/0' },
+          { pid: 1420, ppid: 1415, user: 'guest', pr: 20, ni: 0, virt: 14200, res: 8400, s: 'Ss', cpu: 0.1, mem: 0.4, time: '0:00', cmd: '-bash' },
+          { pid: 14502, ppid: 890, user: 'sshd', pr: 20, ni: 0, virt: 18500, res: 6200, s: 'R', cpu: 85.4, mem: 0.3, time: '0:14', cmd: 'sshd: [accepted]' }
+        ],
+        netConnections: [
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:3306', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1180/mysqld' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:6379', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1210/redis-server' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'tcp6', recv: 0, send: 0, local: '::1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.53:53', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '512/systemd-resolve' },
+          { proto: 'udp', recv: 0, send: 0, local: '0.0.0.0:68', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp6', recv: 0, send: 0, local: '::1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '198.51.100.15:52104', state: 'ESTABLISHED', pid: '1410/sshd: guest' },
+          { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '203.0.113.42:54321', state: 'ESTABLISHED', pid: '14502/sshd' }
+        ],
+        iptablesFilter: `Chain INPUT (policy ACCEPT)\ntarget     prot opt source               destination\n\nChain FORWARD (policy ACCEPT)\ntarget     prot opt source               destination\n\nChain OUTPUT (policy ACCEPT)\ntarget     prot opt source               destination`,
+        iptablesMangle: `Chain PREROUTING (policy ACCEPT)\ntarget     prot opt source               destination`,
+        vfsRoot: null
+      },
+
+      init() {
+        this.resetVfsTree('regresshion');
+        this.syncToUI();
+      },
+
+      switchTab(tabId) {
+        this.activeTab = tabId;
+        document.querySelectorAll('.admin-tab').forEach(b => {
+          b.className = 'admin-tab px-4 py-2.5 text-slate-400 hover:text-slate-200 flex items-center gap-2';
+        });
+        const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+        if (activeBtn) activeBtn.className = 'admin-tab px-4 py-2.5 text-cyan-400 border-b-2 border-cyan-400 font-bold flex items-center gap-2';
+        document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
+        const page = document.getElementById(`tab-content-${tabId}`);
+        if (page) page.classList.remove('hidden');
+      },
+
+      syncFromUI() {
+        this.scenarioData.metadata.title = document.getElementById('meta-title').value;
+        this.scenarioData.metadata.difficulty = document.getElementById('meta-difficulty').value;
+        this.scenarioData.metadata.flag = document.getElementById('meta-flag').value;
+        this.scenarioData.metadata.description = document.getElementById('meta-desc').value;
+        this.scenarioData.metadata.objectives = document.getElementById('meta-objectives').value.split('\n').filter(Boolean);
+        this.scenarioData.metadata.hints = document.getElementById('meta-hints').value.split('\n').filter(Boolean);
+        this.scenarioData.iptablesFilter = document.getElementById('iptables-filter').value;
+        this.scenarioData.iptablesMangle = document.getElementById('iptables-mangle').value;
+      },
+
+      syncToUI() {
+        const m = this.scenarioData.metadata;
+        document.getElementById('meta-title').value = m.title || '';
+        document.getElementById('meta-difficulty').value = m.difficulty || 'Intermediate';
+        document.getElementById('meta-flag').value = m.flag || '';
+        document.getElementById('meta-desc').value = m.description || '';
+        document.getElementById('meta-objectives').value = (m.objectives || []).join('\n');
+        document.getElementById('meta-hints').value = (m.hints || []).join('\n');
+        document.getElementById('iptables-filter').value = this.scenarioData.iptablesFilter || '';
+        document.getElementById('iptables-mangle').value = this.scenarioData.iptablesMangle || '';
+
+        this.renderNetTable();
+        this.renderProcsTable();
+        this.renderSocketsTable();
+        this.renderVfsTree();
+        this.renderVariantInspector();
+      },
+
+      randomizePIDsAndResources() {
+        const pidMap = {};
+        
+        this.scenarioData.procs.forEach(p => {
+          if (p.pid === 1) return;
+          
+          const oldPid = p.pid;
+          const newPid = Math.floor(Math.random() * 28000) + 1200;
+          p.pid = newPid;
+          pidMap[oldPid] = newPid;
+
+          if (p.cpu > 5) {
+            p.cpu = +(p.cpu + (Math.random() * 15 - 7.5)).toFixed(1);
+          } else if (p.cpu > 0) {
+            p.cpu = +(Math.random() * 1.5 + 0.1).toFixed(1);
+          }
+
+          if (p.mem > 0) {
+            p.mem = +(p.mem + (Math.random() * 1.2 - 0.6)).toFixed(1);
+            if (p.mem < 0.1) p.mem = 0.1;
+          }
+
+          p.virt = Math.floor(p.virt * (1 + (Math.random() * 0.2 - 0.1)));
+          p.res = Math.floor(p.res * (1 + (Math.random() * 0.2 - 0.1)));
+
+          const mins = Math.floor(Math.random() * 5);
+          const secs = Math.floor(Math.random() * 59);
+          p.time = `${mins}:${secs.toString().padStart(2, '0')}`;
+        });
+
+        this.scenarioData.procs.forEach(p => {
+          if (p.ppid && pidMap[p.ppid]) {
+            p.ppid = pidMap[p.ppid];
+          }
+        });
+
+        this.scenarioData.netConnections.forEach(c => {
+          if (c.pid && c.pid.includes('/')) {
+            const [oldPid, procName] = c.pid.split('/');
+            if (pidMap[oldPid]) c.pid = `${pidMap[oldPid]}/${procName}`;
+          }
+        });
+
+        this.renderProcsTable();
+        this.renderSocketsTable();
+        this.renderVariantInspector();
+        this.showToast("Randomized Process PIDs, PPIDs, CPU, and Memory usage!");
+      },
+
+      randomizeNetstatSockets() {
+        const randomPublicIP = () => `${Math.floor(Math.random()*150)+11}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}`;
+        this.scenarioData.netConnections.forEach(c => {
+          if (c.state === 'LISTEN') {
+            c.foreign = '0.0.0.0:*';
+          } else if (c.foreign && c.foreign !== '0.0.0.0:*' && !c.foreign.startsWith('127.')) {
+            const newPort = Math.floor(Math.random() * 30000) + 32768;
+            c.foreign = `${randomPublicIP()}:${newPort}`;
+          }
+        });
+        this.renderSocketsTable();
+        this.renderVariantInspector();
+        this.showToast("Shuffled socket remote endpoints and high ephemeral client ports!");
+      },
+
+      randomizeUsersAndCron() {
+        const newUid = Math.floor(Math.random() * 8000) + 1000;
+        const passwdNode = this.getNode('/etc/passwd');
+        if (passwdNode) {
+          passwdNode.content = `root:x:0:0:root:/root:/bin/bash\nguest:x:${newUid}:${newUid}:Guest User,,,:/home/guest:/bin/bash\n`;
+        }
+
+        const crontabNode = this.getNode('/etc/crontab');
+        const min1 = Math.floor(Math.random() * 59);
+        const min2 = Math.floor(Math.random() * 59);
+        const newCronContent = `# /etc/crontab: system-wide crontab\nSHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n${min1} * * * * root /usr/bin/sys-cleanup.sh\n${min2} 4 * * * root /usr/bin/logrotate /etc/logrotate.conf\n`;
+        
+        if (crontabNode) {
+          crontabNode.content = newCronContent;
+        } else {
+          const etcNode = this.getNode('/etc');
+          if (etcNode && etcNode.children) {
+            etcNode.children['crontab'] = { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: new Date().toISOString(), content: newCronContent };
+          }
+        }
+
+        this.renderVfsTree();
+        this.showToast("Shuffled guest user UID/GID and injected dynamic system cron jobs!");
+      },
+
+      injectNoiseProcessesAndSockets() {
+        const noiseProcs = [
+          { cmd: 'kworker/u4:2-ev', user: 'root', cpu: 0.0, mem: 0.0, ppid: 2 },
+          { cmd: '/usr/lib/systemd/systemd-journald', user: 'root', cpu: 0.1, mem: 0.3, ppid: 1 },
+          { cmd: '/usr/bin/dbus-daemon --system', user: 'messagebus', cpu: 0.0, mem: 0.1, ppid: 1 },
+          { cmd: '/usr/sbin/cron -f', user: 'root', cpu: 0.0, mem: 0.1, ppid: 1 }
+        ];
+
+        noiseProcs.forEach(n => {
+          this.scenarioData.procs.push({
+            pid: Math.floor(Math.random() * 15000) + 2000,
+            ppid: n.ppid,
+            user: n.user, pr: 20, ni: 0, virt: 18000, res: 3400, s: 'S', cpu: n.cpu, mem: n.mem, time: '0:01', cmd: n.cmd
+          });
+        });
+
+        const randomDNS = `${Math.floor(Math.random()*100)+1}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}:53`;
+        this.scenarioData.netConnections.push({
+          proto: 'udp', recv: 0, send: 0, local: '192.168.1.105:54210', foreign: randomDNS, state: 'ESTABLISHED', pid: '102/systemd-resolved'
+        });
+
+        this.renderProcsTable();
+        this.renderSocketsTable();
+        this.renderVariantInspector();
+        this.showToast("Injected synthetic background noise (Processes & Auxiliary Sockets)!");
+      },
+
+      generateFreshFlag() {
+        const hash = Array.from({length: 4}, () => Math.random().toString(36).substring(2, 6)).join('_');
+        const newFlag = `FLAG{scenario_${hash}}`;
+        this.scenarioData.metadata.flag = newFlag;
+        document.getElementById('meta-flag').value = newFlag;
+
+        const flagNode = this.getNode('/root/flag.txt');
+        if (flagNode) {
+          flagNode.content = newFlag + '\n';
+        }
+        this.renderVfsTree();
+        this.renderVariantInspector();
+        this.showToast("Generated fresh cryptographic root flag!");
+      },
+
+      executeFullRandomization() {
+        this.syncFromUI();
+        if (document.getElementById('rand-opt-pids').checked) this.randomizePIDsAndResources();
+        if (document.getElementById('rand-opt-ips').checked) this.randomizeNetstatSockets();
+        if (document.getElementById('rand-opt-users').checked) this.randomizeUsersAndCron();
+        if (document.getElementById('rand-opt-flag').checked) this.generateFreshFlag();
+        this.showToast("All selected anti-cheat scenario parameters shuffled!", "success");
+      },
+
+      renderVariantInspector() {
+        const inspProcCount = document.getElementById('rand-insp-proc-count');
+        const inspProcList = document.getElementById('rand-insp-proc-list');
+        const inspSockCount = document.getElementById('rand-insp-sock-count');
+        const inspSockList = document.getElementById('rand-insp-sock-list');
+        const inspFlag = document.getElementById('rand-insp-flag');
+
+        if (inspProcCount) inspProcCount.innerText = `${this.scenarioData.procs.length} Processes`;
+        if (inspProcList) {
+          inspProcList.innerHTML = this.scenarioData.procs.map(p => `
+            <div class="flex justify-between items-center py-0.5 border-b border-slate-900">
+              <span class="truncate max-w-[140px] text-slate-200" title="${p.cmd}">${p.cmd}</span>
+              <span class="text-[10px] text-cyan-400 font-semibold">PID ${p.pid} (PPID ${p.ppid||1}) | ${p.cpu}% CPU</span>
+            </div>
+          `).join('');
+        }
+
+        if (inspSockCount) inspSockCount.innerText = `${this.scenarioData.netConnections.length} Sockets`;
+        if (inspSockList) {
+          inspSockList.innerHTML = this.scenarioData.netConnections.map(s => `
+            <div class="flex justify-between items-center py-0.5 border-b border-slate-900">
+              <span class="text-slate-300">${s.local} &rarr; ${s.foreign}</span>
+              <span class="text-[10px] text-amber-400 font-semibold">${s.pid||'sys'}</span>
+            </div>
+          `).join('');
+        }
+
+        if (inspFlag) inspFlag.innerText = this.scenarioData.metadata.flag || 'FLAG{none}';
+      },
+
+      showToast(msg, type = "info") {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        const bgClass = type === 'success' ? 'bg-emerald-950 border-emerald-600 text-emerald-200' : 'bg-slate-900 border-cyan-500 text-cyan-200';
+        toast.className = `${bgClass} border px-4 py-2.5 rounded-lg shadow-2xl text-xs font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+        toast.innerHTML = `<i class="fa-solid fa-circle-check text-sm"></i> <span>${msg}</span>`;
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+        setTimeout(() => {
+          toast.classList.add('opacity-0', '-translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      },
+
+      renderNetTable() {
+        const tbody = document.getElementById('net-table-body');
+        tbody.innerHTML = this.scenarioData.interfaces.map((i, idx) => `
+          <tr>
+            <td class="p-2.5 font-bold text-cyan-400">${i.name}</td>
+            <td class="p-2.5"><input type="text" value="${i.inet}" onchange="AdminApp.scenarioData.interfaces[${idx}].inet=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-28"></td>
+            <td class="p-2.5"><input type="text" value="${i.netmask}" onchange="AdminApp.scenarioData.interfaces[${idx}].netmask=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-28"></td>
+            <td class="p-2.5"><input type="text" value="${i.ether}" onchange="AdminApp.scenarioData.interfaces[${idx}].ether=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-32"></td>
+            <td class="p-2.5"><input type="number" value="${i.rx_bytes}" onchange="AdminApp.scenarioData.interfaces[${idx}].rx_bytes=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-24"></td>
+            <td class="p-2.5"><input type="number" value="${i.tx_bytes}" onchange="AdminApp.scenarioData.interfaces[${idx}].tx_bytes=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-24"></td>
+            <td class="p-2.5"><input type="number" value="${i.rx_rate}" onchange="AdminApp.scenarioData.interfaces[${idx}].rx_rate=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-20"></td>
+            <td class="p-2.5"><button onclick="AdminApp.deleteInterface(${idx})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
+          </tr>`).join('');
+      },
+
+      addInterface() {
+        this.scenarioData.interfaces.push({ name: `eth${this.scenarioData.interfaces.length}`, flags: 'UP,BROADCAST,RUNNING', mtu: 1500, inet: '10.0.0.10', netmask: '255.255.255.0', ether: '52:54:00:aa:bb:cc', rx_bytes: 1000, tx_bytes: 1000, rx_packets: 10, tx_packets: 10, rx_rate: 1000, tx_rate: 500 });
+        this.renderNetTable();
+      },
+      deleteInterface(idx) { this.scenarioData.interfaces.splice(idx, 1); this.renderNetTable(); },
+
+      renderProcsTable() {
+        const tbody = document.getElementById('procs-table-body');
+        tbody.innerHTML = this.scenarioData.procs.map((p, idx) => `
+          <tr>
+            <td class="p-2.5 text-cyan-400 font-bold">${p.pid}</td>
+            <td class="p-2.5"><input type="number" value="${p.ppid||1}" onchange="AdminApp.scenarioData.procs[${idx}].ppid=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-16"></td>
+            <td class="p-2.5"><input type="text" value="${p.user}" onchange="AdminApp.scenarioData.procs[${idx}].user=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-20"></td>
+            <td class="p-2.5"><input type="number" step="0.1" value="${p.cpu}" onchange="AdminApp.scenarioData.procs[${idx}].cpu=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-16"></td>
+            <td class="p-2.5"><input type="number" step="0.1" value="${p.mem}" onchange="AdminApp.scenarioData.procs[${idx}].mem=+this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-16"></td>
+            <td class="p-2.5"><input type="text" value="${p.s}" onchange="AdminApp.scenarioData.procs[${idx}].s=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-12"></td>
+            <td class="p-2.5"><input type="text" value="${p.cmd}" onchange="AdminApp.scenarioData.procs[${idx}].cmd=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-60"></td>
+            <td class="p-2.5"><button onclick="AdminApp.deleteProcess(${idx})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
+          </tr>`).join('');
+      },
+      addProcess() {
+        this.scenarioData.procs.push({ pid: Math.floor(Math.random()*8000)+2000, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 24000, res: 5000, s: 'S', cpu: 0.1, mem: 0.2, time: '0:01', cmd: '/usr/bin/custom_daemon' });
+        this.renderProcsTable();
+        this.renderVariantInspector();
+      },
+      deleteProcess(idx) { this.scenarioData.procs.splice(idx, 1); this.renderProcsTable(); this.renderVariantInspector(); },
+
+      renderSocketsTable() {
+        const tbody = document.getElementById('sockets-table-body');
+        tbody.innerHTML = this.scenarioData.netConnections.map((s, idx) => `
+          <tr>
+            <td class="p-2.5"><input type="text" value="${s.proto}" onchange="AdminApp.scenarioData.netConnections[${idx}].proto=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-16"></td>
+            <td class="p-2.5"><input type="text" value="${s.local}" onchange="AdminApp.scenarioData.netConnections[${idx}].local=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-36"></td>
+            <td class="p-2.5"><input type="text" value="${s.foreign}" onchange="AdminApp.scenarioData.netConnections[${idx}].foreign=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-36"></td>
+            <td class="p-2.5"><input type="text" value="${s.state}" onchange="AdminApp.scenarioData.netConnections[${idx}].state=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-28"></td>
+            <td class="p-2.5"><input type="text" value="${s.pid}" onchange="AdminApp.scenarioData.netConnections[${idx}].pid=this.value" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 w-32"></td>
+            <td class="p-2.5"><button onclick="AdminApp.deleteSocket(${idx})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button></td>
+          </tr>`).join('');
+      },
+      addSocket() {
+        this.scenarioData.netConnections.push({ proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1234/nginx' });
+        this.renderSocketsTable();
+        this.renderVariantInspector();
+      },
+      deleteSocket(idx) { this.scenarioData.netConnections.splice(idx, 1); this.renderSocketsTable(); this.renderVariantInspector(); },
+
+      getNode(path) {
+        if (!this.scenarioData.vfsRoot) return null;
+        if (path === '/') return this.scenarioData.vfsRoot;
+        const parts = path.split('/').filter(Boolean);
+        let curr = this.scenarioData.vfsRoot;
+        for (const part of parts) {
+          if (!curr || curr.type !== 'dir' || !curr.children || !(part in curr.children)) return null;
+          curr = curr.children[part];
+        }
+        return curr;
+      },
+
+      renderVfsTree() {
+        const treeContainer = document.getElementById('vfs-tree-container');
+        let html = '';
+        function buildTree(node, path) {
+          if (!node) return;
+          if (node.type === 'dir') {
+            html += `<div class="cursor-pointer text-cyan-400 hover:underline" onclick="AdminApp.selectVfsNode('${path}')"><i class="fa-solid fa-folder me-1"></i> ${path}</div>`;
+            if (node.children) {
+              Object.keys(node.children).forEach(k => buildTree(node.children[k], path === '/' ? '/' + k : path + '/' + k));
+            }
+          } else {
+            html += `<div class="cursor-pointer text-slate-300 hover:text-emerald-300 pl-4" onclick="AdminApp.selectVfsNode('${path}')"><i class="fa-solid fa-file me-1"></i> ${path}</div>`;
+          }
+        }
+        buildTree(this.scenarioData.vfsRoot, '/');
+        treeContainer.innerHTML = html;
+      },
+
+      selectVfsNode(path) {
+        const node = this.getNode(path);
+        if (!node) return;
+        document.getElementById('vfs-path').value = path;
+        document.getElementById('vfs-type').value = node.type;
+        document.getElementById('vfs-perm').value = node.permissions;
+        document.getElementById('vfs-owner').value = node.owner;
+        document.getElementById('vfs-group').value = node.group;
+        document.getElementById('vfs-content').value = node.content || '';
+      },
+
+      saveVfsNode() {
+        const path = document.getElementById('vfs-path').value.trim();
+        if (!path) return;
+        const parts = path.split('/').filter(Boolean);
+        const fileName = parts.pop();
+        const parentPath = '/' + parts.join('/');
+        let parentNode = this.getNode(parentPath);
+        if (!parentNode || parentNode.type !== 'dir') parentNode = this.scenarioData.vfsRoot;
+
+        parentNode.children[fileName] = {
+          type: document.getElementById('vfs-type').value,
+          permissions: document.getElementById('vfs-perm').value,
+          owner: document.getElementById('vfs-owner').value,
+          group: document.getElementById('vfs-group').value,
+          mtime: new Date().toISOString(),
+          content: document.getElementById('vfs-content').value,
+          children: {}
+        };
+        this.renderVfsTree();
+      },
+
+      deleteVfsNode() {
+        const path = document.getElementById('vfs-path').value.trim();
+        if (!path || path === '/') return;
+        const parts = path.split('/').filter(Boolean);
+        const fileName = parts.pop();
+        const parentNode = this.getNode('/' + parts.join('/'));
+        if (parentNode && parentNode.children) {
+          delete parentNode.children[fileName];
+          this.renderVfsTree();
+        }
+      },
+
+      resetVfsTree(scenarioId) {
+        const now = new Date().toISOString();
+        const defaultTmpFiles = {
+          '.X11-unix': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: {
+            'X0': { type: 'file', permissions: 'srwxrwxrwx', owner: 'root', group: 'root', mtime: now, content: '' }
+          }},
+          '.ICE-unix': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: {} },
+          'systemd-private-a38f9021-systemd-resolved.service-9fA1b2': { type: 'dir', permissions: 'rwx------', owner: 'root', group: 'root', mtime: now, children: {} },
+          'tmpx19a_lock': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: 'pid=1205\n' },
+          'sess_98a72b10f81d': { type: 'file', permissions: 'rw-------', owner: 'guest', group: 'guest', mtime: now, content: 'user_session=active_guest\n' }
+        };
+
+        if (scenarioId === 'ligolo') {
+          defaultTmpFiles['agent'] = { type: 'file', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, content: '#!/bin/sh\n# Ligolo-ng C2 TUN Pivot Agent\n/usr/bin/ligolo-agent -connect 10.0.0.5:11601 -ignore-cert\n' };
+        } else if (scenarioId === 'log4shell') {
+          defaultTmpFiles['hs_err_pid4051.log'] = { type: 'file', permissions: 'rw-r--r--', owner: 'www-data', group: 'www-data', mtime: now, content: '# Fatal error in Java Runtime Environment\n# JNDI lookup failed during payload extraction\n' };
+        } else if (scenarioId === 'net_pivot') {
+          defaultTmpFiles['socat_relay.sh'] = { type: 'file', permissions: 'rwxr-xr-x', owner: 'guest', group: 'guest', mtime: now, content: '#!/bin/bash\nsocat TCP-LISTEN:4444,fork TCP:10.0.0.25:80 &\n' };
+        }
+
+        this.scenarioData.vfsRoot = {
+          type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now,
+          children: {
+            'etc': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'passwd': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: 'root:x:0:0:root:/root:/bin/bash\nguest:x:1000:1000:Guest User,,,:/home/guest:/bin/bash\n' },
+              'crontab': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: '# /etc/crontab: system-wide crontab\nSHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n17 * * * * root /usr/bin/sys-cleanup.sh\n' }
+            }},
+            'var': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'log': { type: 'dir', permissions: 'rwxrwxr-x', owner: 'root', group: 'syslog', mtime: now, children: {
+                'syslog': { type: 'file', permissions: 'rw-r-----', owner: 'syslog', group: 'adm', mtime: now, content: 'System initialized.\n' }
+              }}
+            }},
+            'home': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'guest': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'guest', group: 'guest', mtime: now, children: {} }
+            }},
+            'root': { type: 'dir', permissions: 'rwx------', owner: 'root', group: 'root', mtime: now, children: {
+              'flag.txt': { type: 'file', permissions: 'rw-------', owner: 'root', group: 'root', mtime: now, content: this.scenarioData.metadata.flag + '\n' }
+            }},
+            'tmp': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: defaultTmpFiles }
+          }
+        };
+      },
+
+      loadPresetScenario(preset) {
+        const baseProcs = [
+          { pid: 1, ppid: 0, user: 'root', pr: 20, ni: 0, virt: 16840, res: 4120, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:02', cmd: '/sbin/init' },
+          { pid: 2, ppid: 0, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kthreadd]' },
+          { pid: 3, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_gp]' },
+          { pid: 4, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_par_gp]' },
+          { pid: 6, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kworker/0:0H-events_highpri]' },
+          { pid: 9, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[mm_percpu_wq]' },
+          { pid: 10, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:01', cmd: '[ksoftirqd/0]' },
+          { pid: 11, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:03', cmd: '[rcu_sched]' },
+          { pid: 12, ppid: 2, user: 'root', pr: -100, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[migration/0]' },
+          { pid: 14, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kdevtmpfs]' },
+          { pid: 18, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kauditd]' },
+          { pid: 22, ppid: 2, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[writeback]' },
+          { pid: 26, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kcompactd0]' },
+          { pid: 28, ppid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'SN', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[khugepaged]' },
+          { pid: 312, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 28900, res: 9810, s: 'Ss', cpu: 0.1, mem: 0.5, time: '0:04', cmd: '/lib/systemd/systemd-journald' },
+          { pid: 348, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 22100, res: 6420, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: '/lib/systemd/systemd-udevd' },
+          { pid: 480, ppid: 1, user: 'systemd-timesync', pr: 20, ni: 0, virt: 18400, res: 3120, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/lib/systemd/systemd-timesyncd' },
+          { pid: 512, ppid: 1, user: 'systemd-resolve', pr: 20, ni: 0, virt: 24300, res: 8900, s: 'Ssl', cpu: 0.1, mem: 0.4, time: '0:02', cmd: '/lib/systemd/systemd-resolved' },
+          { pid: 620, ppid: 1, user: 'syslog', pr: 20, ni: 0, virt: 224100, res: 4890, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/rsyslogd -n -iNONE' },
+          { pid: 680, ppid: 1, user: 'messagebus', pr: 20, ni: 0, virt: 12400, res: 4100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/usr/bin/dbus-daemon --system' },
+          { pid: 710, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 10400, res: 2890, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:00', cmd: '/usr/sbin/cron -f' },
+          { pid: 740, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 42100, res: 7420, s: 'Ssl', cpu: 0.0, mem: 0.4, time: '0:00', cmd: '/usr/libexec/accountsservice-daemon' },
+          { pid: 890, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 22400, res: 5100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/sshd -D' },
+          { pid: 910, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 48200, res: 12400, s: 'Ssl', cpu: 0.1, mem: 0.6, time: '0:03', cmd: '/usr/bin/python3 /usr/bin/fail2ban-server' },
+          { pid: 1020, ppid: 1, user: 'postfix', pr: 20, ni: 0, virt: 38400, res: 6100, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:00', cmd: '/usr/lib/postfix/master -w' },
+          { pid: 1150, ppid: 1, user: 'www-data', pr: 20, ni: 0, virt: 184500, res: 14200, s: 'Ss', cpu: 0.2, mem: 0.7, time: '0:05', cmd: '/usr/sbin/apache2 -k start' },
+          { pid: 1210, ppid: 1, user: 'redis', pr: 20, ni: 0, virt: 62100, res: 11400, s: 'Ssl', cpu: 0.1, mem: 0.5, time: '0:02', cmd: '/usr/bin/redis-server 127.0.0.1:6379' },
+          { pid: 1410, ppid: 890, user: 'root', pr: 20, ni: 0, virt: 24100, res: 7200, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: 'sshd: guest [priv]' },
+          { pid: 1415, ppid: 1410, user: 'guest', pr: 20, ni: 0, virt: 24100, res: 4800, s: 'S', cpu: 0.0, mem: 0.2, time: '0:00', cmd: 'sshd: guest@pts/0' },
+          { pid: 1420, ppid: 1415, user: 'guest', pr: 20, ni: 0, virt: 14200, res: 8400, s: 'Ss', cpu: 0.1, mem: 0.4, time: '0:00', cmd: '-bash' }
+        ];
+
+        const baseSockets = [
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:3306', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1180/mysqld' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:6379', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1210/redis-server' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'tcp6', recv: 0, send: 0, local: '::1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.53:53', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '512/systemd-resolve' },
+          { proto: 'udp', recv: 0, send: 0, local: '0.0.0.0:68', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp6', recv: 0, send: 0, local: '::1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '198.51.100.15:52104', state: 'ESTABLISHED', pid: '1410/sshd: guest' }
+        ];
+
+        if (preset === 'regresshion') {
+          this.scenarioData.metadata = {
+            title: "CVE-2024-6387 regreSSHion", difficulty: "Advanced",
+            description: "OpenSSH Signal Handler Race Condition vulnerability leading to unauthenticated RCE as root.",
+            objectives: ["Analyze running OpenSSH processes in ps aux", "Locate vulnerable glibc/sshd memory mapping in syslog", "Exfiltrate proof flag from /root/flag.txt"],
+            hints: ["Check auth.log in /var/log", "Investigate high CPU process PID 14502"],
+            flag: "FLAG{regreSSHion_2024_rce_pwned}"
+          };
+          this.scenarioData.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1420, tx_bytes: 1420, rx_packets: 14, tx_packets: 14, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING,MULTICAST', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 142050, tx_bytes: 98120, rx_packets: 1240, tx_packets: 980, rx_rate: 1420, tx_rate: 840 }
+          ];
+          this.scenarioData.procs = [
+            ...baseProcs,
+            { pid: 14502, ppid: 890, user: 'sshd', pr: 20, ni: 0, virt: 18500, res: 6200, s: 'R', cpu: 85.4, mem: 0.3, time: '0:14', cmd: 'sshd: [accepted]' }
+          ];
+          this.scenarioData.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '203.0.113.42:54321', state: 'ESTABLISHED', pid: '14502/sshd' }
+          ];
+        } else if (preset === 'ligolo') {
+          this.scenarioData.metadata = {
+            title: "Ligolo-ng C2 Pivoting", difficulty: "Intermediate",
+            description: "An active C2 agent has established a TUN interface to pivot inside internal subnet 10.10.0.0/24.",
+            objectives: ["Inspect active TUN interfaces using ifconfig / ip addr", "Examine routing table for 10.10.0.0/24", "Find C2 binary in /tmp/agent"],
+            hints: ["Run ifconfig to see tun0 interface traffic", "Use netstat -tulnp to see connected socket"],
+            flag: "FLAG{ligolo_ng_tun_pivot_mastered}"
+          };
+          this.scenarioData.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 400, tx_bytes: 400, rx_packets: 4, tx_packets: 4, rx_rate: 50, tx_rate: 50 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING,MULTICAST', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 84100, tx_bytes: 42100, rx_packets: 800, tx_packets: 410, rx_rate: 1100, tx_rate: 600 },
+            { name: 'tun0', flags: 'UP,POINTOPOINT,RUNNING,NOARP', mtu: 1500, inet: '10.10.0.1', netmask: '255.255.255.255', ether: '', rx_bytes: 51200, tx_bytes: 61400, rx_packets: 405, tx_packets: 512, rx_rate: 2048, tx_rate: 1024 }
+          ];
+          this.scenarioData.procs = [
+            ...baseProcs,
+            { pid: 1104, ppid: 1, user: 'root', pr: 20, ni: 0, virt: 712000, res: 14200, s: 'Ssl', cpu: 1.2, mem: 0.6, time: '0:45', cmd: '/tmp/agent -connect 10.0.0.5:11601' }
+          ];
+          this.scenarioData.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:44812', foreign: '10.0.0.5:11601', state: 'ESTABLISHED', pid: '1104/agent' }
+          ];
+        } else if (preset === 'log4shell') {
+          this.scenarioData.metadata = {
+            title: "Log4Shell (CVE-2021-44228)", difficulty: "Intermediate",
+            description: "JNDI Remote Class Loading exploit triggered via HTTP header injection into Java application.",
+            objectives: ["Find malicious payload in log files", "Identify Java process listening on HTTP port", "Locate root flag"],
+            hints: ["Inspect /var/log/syslog with grep", "Check ps aux for java processes"],
+            flag: "FLAG{log4j_jndi_injection_successful}"
+          };
+          this.scenarioData.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1000, tx_bytes: 1000, rx_packets: 10, tx_packets: 10, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING', mtu: 1500, inet: '192.168.1.110', netmask: '255.255.255.0', ether: '52:54:00:88:99:aa', rx_bytes: 254100, tx_bytes: 184200, rx_packets: 2100, tx_packets: 1800, rx_rate: 1500, tx_rate: 900 }
+          ];
+          this.scenarioData.procs = [
+            ...baseProcs,
+            { pid: 4051, ppid: 1, user: 'www-data', pr: 20, ni: 0, virt: 2450000, res: 185000, s: 'Ssl', cpu: 12.4, mem: 8.5, time: '2:15', cmd: 'java -jar /app/vulnerable-app.jar' }
+          ];
+          this.scenarioData.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:8080', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '4051/java' },
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.110:8080', foreign: '198.51.100.7:389', state: 'ESTABLISHED', pid: '4051/java' }
+          ];
+        } else if (preset === 'net_pivot') {
+          this.scenarioData.metadata = {
+            title: "Net Pivot & Persistence", difficulty: "Expert",
+            description: "Dual-homed router pivoting with socat port forwarders and persistent TMUX backdoors.",
+            objectives: ["Attach to existing TMUX session", "Identify socat port forwarders in ps aux", "Examine iptables MSS clamping rules"],
+            hints: ["Type tmux to attach to session", "Check iptables -t mangle -L"],
+            flag: "FLAG{net_pivot_persistence_mastered}"
+          };
+          this.scenarioData.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1000, tx_bytes: 1000, rx_packets: 10, tx_packets: 10, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 90000, tx_bytes: 40000, rx_packets: 900, tx_packets: 400, rx_rate: 1200, tx_rate: 800 }
+          ];
+          this.scenarioData.procs = [
+            ...baseProcs,
+            { pid: 9912, ppid: 1, user: 'guest', pr: 20, ni: 0, virt: 54100, res: 12100, s: 'Ss', cpu: 0.1, mem: 0.5, time: '1:12', cmd: 'tmux new-session -d -s backdoor' },
+            { pid: 9913, ppid: 9912, user: 'guest', pr: 20, ni: 0, virt: 14500, res: 8100, s: 'S', cpu: 0.0, mem: 0.4, time: '0:01', cmd: 'socat TCP-LISTEN:4444,fork TCP:10.0.0.25:80' }
+          ];
+          this.scenarioData.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:4444', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '9913/socat' }
+          ];
+        }
+        this.resetVfsTree(preset);
+        this.syncToUI();
+        this.showToast(`Loaded scenario preset: ${this.scenarioData.metadata.title}`);
+      },
+
+      showExportModal() {
+        this.syncFromUI();
+        document.getElementById('export-title').value = this.scenarioData.metadata.title || "Custom Cyber Scenario";
+        document.getElementById('export-modal').classList.remove('hidden');
+      },
+
+      closeExportModal() {
+        document.getElementById('export-modal').classList.add('hidden');
+      },
+
+      downloadScenarioFile() {
+        this.syncFromUI();
+        const obfuscate = document.getElementById('export-obfuscate').checked;
+        const filename = (this.scenarioData.metadata.title || 'scenario').toLowerCase().replace(/[^a-z0-9]/g, '_') + '.scenario';
+
+        let fileData;
+        if (obfuscate) {
+          fileData = encodeScenario(this.scenarioData);
+        } else {
+          fileData = JSON.stringify(this.scenarioData, null, 2);
+        }
+
+        const blob = new Blob([fileData], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.closeExportModal();
+        this.showToast("Scenario package exported successfully!", "success");
+      },
+
+      handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const raw = e.target.result;
+            let data;
+            if (raw.trim().startsWith('{')) {
+              data = JSON.parse(raw);
+            } else {
+              data = decodeScenario(raw.trim());
+            }
+
+            if (data && data.metadata) {
+              this.scenarioData = data;
+              this.syncToUI();
+              this.showToast(`Successfully imported: ${data.metadata.title}`, "success");
+            } else {
+              this.showToast("Invalid scenario file structure.");
+            }
+          } catch (err) {
+            this.showToast("Error parsing scenario file!");
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+
+    window.onload = () => AdminApp.init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Linux Web Terminal & Exercise Suite</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #1e1f29; --text-color: #f8f8f2; --prompt-user: #50fa7b; --prompt-host: #ff79c6; 
+      --prompt-path: #8be9fd; --dir-color: #8be9fd; --exec-color: #50fa7b; 
+      --accent-color: #ff79c6; --border-color: #44475a; --status-bg: #191a21;
+      --term-font: 'JetBrains Mono', 'Fira Code', monospace; --term-size: 14px;
+    }
+    [data-theme="monokai"] {
+      --bg-color: #272822; --text-color: #f8f8f2; --prompt-user: #a6e22e; --prompt-host: #f92672; --prompt-path: #66d9ef; --dir-color: #66d9ef; --exec-color: #a6e22e; --status-bg: #1e1f1c; --border-color: #3e3d32;
+    }
+    [data-theme="cyberpunk"] {
+      --bg-color: #0d0f18; --text-color: #e0f7fc; --prompt-user: #00f0ff; --prompt-host: #ff007f; --prompt-path: #ffe600; --dir-color: #00f0ff; --exec-color: #39ff14; --status-bg: #05060b; --border-color: #1f2338;
+    }
+    [data-theme="matrix"] {
+      --bg-color: #030a03; --text-color: #00ff41; --prompt-user: #00ff41; --prompt-host: #33ff66; --prompt-path: #00cc33; --dir-color: #33ff66; --exec-color: #00ff41; --status-bg: #010501; --border-color: #003b00;
+    }
+    [data-theme="ubuntu"] {
+      --bg-color: #300a24; --text-color: #ffffff; --prompt-user: #8ae234; --prompt-host: #fcaf3e; --prompt-path: #729fcf; --dir-color: #729fcf; --exec-color: #8ae234; --status-bg: #1f0517; --border-color: #541943;
+    }
+    [data-theme="amber"] {
+      --bg-color: #120c00; --text-color: #ffb000; --prompt-user: #ffc83b; --prompt-host: #ff9400; --prompt-path: #ffd05b; --dir-color: #ffc83b; --exec-color: #ffb000; --status-bg: #0a0700; --border-color: #3b2800;
+    }
+
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #090a0f; font-family: var(--term-font); color: var(--text-color); }
+    #app-root { display: flex; flex-direction: column; height: 100vh; width: 100vw; position: relative; }
+    .terminal-container { background-color: var(--bg-color); font-size: var(--term-size); line-height: 1.5; }
+
+    .scanlines::before {
+      content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px; z-index: 20; pointer-events: none; opacity: 0.35;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+
+    .cursor-block { background-color: var(--text-color); color: var(--bg-color); min-width: 8px; display: inline-block; text-align: center; }
+    .cursor-blink { animation: blink 1s step-end infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .file-dir { color: var(--dir-color); font-weight: bold; }
+    .file-exec { color: var(--exec-color); font-weight: bold; }
+    .text-user { color: var(--prompt-user); font-weight: bold; }
+    .text-host { color: var(--prompt-host); font-weight: bold; }
+    .text-path { color: var(--prompt-path); font-weight: bold; }
+  </style>
+</head>
+<body id="app-root" data-theme="monokai" class="scanlines">
+
+  <header class="h-12 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between px-4 text-xs z-30 select-none shrink-0">
+    <div class="flex items-center space-x-4">
+      <div class="flex space-x-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 cursor-pointer" onclick="commands.clear()" title="Clear Terminal"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 cursor-pointer" onclick="toggleCRT()" title="Toggle Scanlines"></div>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3 text-slate-400">
+      <button onclick="showObjectivesModal()" class="bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-700/60 px-2.5 py-1 rounded text-xs flex items-center gap-1.5 font-bold transition-all">
+        <i class="fa-solid fa-bullseye text-indigo-400"></i> Objectives & Hints
+      </button>
+
+      <div class="flex items-center space-x-2 bg-red-900/20 px-2 py-1 rounded border border-red-900/50">
+        <i class="fa-solid fa-spider text-red-400"></i>
+        <select id="scenario-select" onchange="SystemSim.loadScenario(this.value)" class="bg-transparent text-red-200 outline-none text-[11px] cursor-pointer font-bold w-36 md:w-auto">
+          <option value="regresshion" class="bg-slate-900 text-red-400">1. regreSSHion (CVE-2024-6387)</option>
+          <option value="ligolo" class="bg-slate-900 text-red-400">2. Ligolo-ng C2 Pivot</option>
+          <option value="log4shell" class="bg-slate-900 text-red-400">3. Log4Shell JNDI Injection</option>
+          <option value="net_pivot" class="bg-slate-900 text-red-400">4. Net Pivot & Persistence</option>
+        </select>
+        
+        <div class="flex items-center space-x-1 border-l border-red-900/50 pl-2">
+          <button onclick="document.getElementById('import-file').click()" title="Import .scenario" class="text-red-400 hover:text-red-300 px-1"><i class="fa-solid fa-file-import"></i></button>
+          <input type="file" id="import-file" class="hidden" accept=".scenario,.json" onchange="handleImport(event)">
+        </div>
+      </div>
+      
+      <div class="hidden md:flex items-center space-x-1 bg-slate-800/80 px-2 py-1 rounded border border-slate-700">
+        <i class="fa-solid fa-palette text-slate-400 text-xs"></i>
+        <select id="theme-select" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 outline-none text-[11px] cursor-pointer">
+          <option value="monokai">Monokai</option>
+          <option value="cyberpunk">Cyberpunk</option>
+          <option value="matrix">Matrix</option>
+          <option value="dracula">Dracula</option>
+          <option value="ubuntu">Ubuntu</option>
+          <option value="amber">Amber CRT</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main id="view-terminal" class="terminal-container flex-1 p-4 overflow-y-auto cursor-text relative min-h-0" onclick="focusInput()">
+    <div id="terminal-output" class="space-y-1"></div>
+    <div id="prompt-container" class="flex flex-wrap items-center mt-2 relative">
+      <span id="prompt-label" class="inline-flex items-center gap-1 font-semibold me-2 select-none"></span>
+      <div id="cmd-container" class="inline-flex items-center flex-wrap font-mono relative break-all cursor-text">
+        <span id="cmd-text-before" class="whitespace-pre-wrap"></span>
+        <span id="cursor-indicator" class="cursor-block cursor-blink select-none">&nbsp;</span>
+        <span id="cmd-text-after" class="whitespace-pre-wrap"></span>
+      </div>
+    </div>
+    <input type="text" id="hidden-input" style="position: absolute; opacity: 0; width: 1px; height: 1px; left: -9999px;" autocomplete="off" spellcheck="false" />
+  </main>
+
+  <div id="vim-overlay" class="hidden absolute inset-0 bg-slate-950 z-50 flex flex-col font-mono text-sm select-none">
+    <div class="bg-slate-900 text-slate-300 px-3 py-1 border-b border-slate-800 flex justify-between text-xs items-center">
+      <div class="flex items-center space-x-2">
+        <span class="text-green-400 font-bold"><i class="fa-solid fa-pen-nib me-1"></i> VIM</span>
+        <span id="vim-file-title" class="text-slate-100 font-semibold">file.txt</span>
+        <span id="vim-modified-badge" class="text-yellow-400 hidden">[+]</span>
+      </div>
+    </div>
+    <div class="flex-1 flex overflow-hidden bg-slate-950">
+      <div id="vim-line-numbers" class="w-12 bg-slate-900/50 text-slate-600 text-right pr-3 py-2 select-none border-r border-slate-800/60 leading-relaxed font-mono text-xs"></div>
+      <div id="vim-buffer-screen" class="flex-1 p-2 text-slate-100 overflow-auto whitespace-pre font-mono leading-relaxed outline-none text-[13px]"></div>
+    </div>
+    <div class="bg-slate-900 text-slate-200 border-t border-slate-800 flex flex-col text-xs">
+      <div class="flex justify-between items-center px-3 py-1 bg-slate-800/80">
+        <span id="vim-mode-badge" class="font-bold text-black bg-cyan-400 px-2 py-0.5 rounded text-[11px]">NORMAL</span>
+        <span id="vim-cursor-pos" class="font-bold text-cyan-300">1,1</span>
+      </div>
+      <div id="vim-command-line" class="px-3 py-0.5 bg-slate-950 text-slate-100 h-6 flex items-center font-mono"></div>
+    </div>
+  </div>
+
+  <div id="nano-overlay" class="hidden absolute inset-0 bg-black z-50 flex flex-col font-mono text-sm select-none">
+    <div class="bg-slate-200 text-black px-3 py-1 flex justify-between text-[13px] font-bold">
+      <span>GNU nano 6.2</span>
+      <span id="nano-file-title">File: untitled</span>
+      <span id="nano-modified-badge" class="hidden">Modified</span>
+    </div>
+    <div id="nano-buffer-screen" class="flex-1 p-2 text-slate-100 overflow-auto whitespace-pre font-mono leading-relaxed outline-none text-[14px] bg-transparent"></div>
+    <div class="text-slate-100 bg-black text-[12px] flex flex-col">
+      <div id="nano-msg-bar" class="px-2 py-1 text-center h-6 text-black bg-slate-300 hidden"></div>
+      <div class="grid grid-cols-6 gap-x-2 gap-y-1 p-2 border-t border-slate-800">
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^G</span> Get Help</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^O</span> Write Out</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^W</span> Where Is</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^K</span> Cut Text</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^J</span> Justify</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^C</span> Cur Pos</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^X</span> Exit</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^R</span> Read File</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^\</span> Replace</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^U</span> Paste Text</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^T</span> To Spell</div>
+        <div><span class="bg-slate-100 text-black px-1 font-bold">^_</span> Go To Line</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="top-overlay" class="hidden absolute inset-0 bg-slate-950 z-50 p-4 flex flex-col font-mono text-xs overflow-hidden">
+    <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-800">
+      <span class="text-cyan-400 font-bold text-sm">top - Dynamic System Task Monitor</span>
+      <button onclick="exitTop()" class="bg-red-600 hover:bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">Quit (q)</button>
+    </div>
+    <div class="flex-1 overflow-auto border border-slate-800 rounded">
+      <table class="w-full text-left border-collapse font-mono">
+        <thead class="bg-slate-900 text-slate-300 sticky top-0 text-[11px]">
+          <tr>
+            <th class="p-1">PID</th><th class="p-1">USER</th><th class="p-1">PR</th><th class="p-1">NI</th>
+            <th class="p-1">VIRT</th><th class="p-1">RES</th><th class="p-1">S</th><th class="p-1">%CPU</th>
+            <th class="p-1">%MEM</th><th class="p-1">TIME+</th><th class="p-1">COMMAND</th>
+          </tr>
+        </thead>
+        <tbody id="top-proc-list" class="divide-y divide-slate-900 text-slate-300 text-[11px]"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 border-t border-slate-800 px-2 py-1 flex items-center justify-between text-xs gap-1 overflow-x-auto z-20 shrink-0 select-none">
+    <div class="flex items-center space-x-1">
+      <button onclick="handleTabKey()" class="bg-slate-800 hover:bg-slate-700 text-cyan-400 px-2.5 py-1 rounded border border-slate-700 font-bold">Tab</button>
+      <button onclick="sendKey('ArrowUp')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700">▲</button>
+      <button onclick="sendKey('ArrowDown')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700">▼</button>
+      <button onclick="triggerReverseSearch()" class="bg-slate-800 hover:bg-slate-700 text-purple-400 px-2.5 py-1 rounded border border-slate-700 font-bold">Ctrl+R</button>
+      <button onclick="handleCtrlC()" class="bg-slate-800 hover:bg-slate-700 text-red-400 px-2.5 py-1 rounded border border-slate-700 font-bold">Ctrl+C</button>
+    </div>
+  </div>
+
+  <footer id="status-bar" class="h-6 bg-slate-950 border-t border-slate-800 px-4 flex items-center justify-between text-[11px] text-slate-400 z-20 select-none shrink-0 relative">
+    <div id="tmux-indicator" class="hidden absolute left-0 bottom-0 h-full w-full bg-green-600 z-10 flex items-center px-2 text-black font-bold">
+      [0] 0:bash* 1:socat-relay- (TMUX Enclave Active)
+    </div>
+    <div class="flex items-center space-x-4">
+      <span class="flex items-center gap-1"><i class="fa-regular fa-clock text-cyan-400"></i> <span id="uptime-counter" class="text-slate-200">00:00:00</span></span>
+      <span class="hidden sm:flex items-center gap-1"><i class="fa-regular fa-folder text-yellow-400"></i> <span id="status-pwd" class="text-slate-200">/home/guest</span></span>
+    </div>
+    <div class="flex items-center space-x-4">
+      <span class="flex items-center gap-1 text-red-400 font-bold" id="status-scenario"><i class="fa-solid fa-biohazard"></i> Default</span>
+      <span class="flex items-center gap-1"><i class="fa-solid fa-terminal text-purple-400"></i> <span id="cmd-count" class="text-slate-200">0</span></span>
+      <span class="flex items-center gap-1">$? <span id="last-exit-status" class="px-1 bg-green-900/60 text-green-300 rounded font-bold">0</span></span>
+    </div>
+  </footer>
+
+  <div id="objectives-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 p-6 rounded-lg shadow-xl max-w-lg w-full font-sans text-xs text-slate-200 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h2 id="obj-modal-title" class="text-sm font-bold text-cyan-400 flex items-center gap-2">
+          <i class="fa-solid fa-bullseye text-indigo-400"></i> Scenario Objectives
+        </h2>
+        <button onclick="closeObjectivesModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-300 mb-1">Scenario Overview:</h3>
+        <p id="obj-modal-desc" class="text-slate-400 leading-relaxed"></p>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-300 mb-1">Key Objectives:</h3>
+        <ul id="obj-modal-list" class="list-disc list-inside space-y-1 text-emerald-300 font-mono"></ul>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-300 mb-1">Exercise Hints:</h3>
+        <ul id="obj-modal-hints" class="space-y-1.5 font-mono"></ul>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeObjectivesModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const manPages = {
+      'grep': `NAME\n       grep, egrep - print lines that match patterns\n\nOPTIONS\n       -i, --ignore-case\n       -v, --invert-match\n       -n, --line-number\n       -r, --recursive`,
+      'ls': `NAME\n       ls - list directory contents\n\nOPTIONS\n       -a, --all\n       -l, --long\n       -h, --human-readable`,
+      'ifconfig': `NAME\n       ifconfig - configure network interface\n\nDESCRIPTION\n       ifconfig displays network interface addresses and increments packet counters dynamically.`,
+      'ip': `NAME\n       ip - show / manipulate routing, devices, and tunnels\n\nOBJECTS\n       addr, link, route`,
+      'netstat': `NAME\n       netstat - Print network connections and listening sockets\n\nOPTIONS\n       -t, --tcp\n       -u, --udp\n       -l, --listening\n       -p, --program\n       -n, --numeric`,
+      'nmap': `NAME\n       nmap - Network exploration tool and port scanner`,
+      'iptables': `NAME\n       iptables - IPv4 packet filter tool\n\nOPTIONS\n       -L, --list\n       -t, --table [filter|mangle|nat]`,
+      'find': `NAME\n       find - search for files in a directory hierarchy\n\nOPTIONS\n       -name pattern\n       -type [f|d|l]`,
+      'sudo': `NAME\n       sudo - execute a command as superuser / root`,
+      'alias': `NAME\n       alias - create command shortcuts / aliases`
+    };
+    manPages['egrep'] = manPages['grep'];
+
+    const SystemSim = {
+      scenario: 'regresshion',
+      metadata: {
+        title: "CVE-2024-6387 regreSSHion",
+        difficulty: "Advanced",
+        description: "OpenSSH Signal Handler Race Condition vulnerability leading to unauthenticated RCE as root.",
+        objectives: ["Analyze running OpenSSH processes in ps aux", "Locate vulnerable glibc/sshd memory mapping", "Exfiltrate proof flag from /root/flag.txt"],
+        hints: ["Check auth.log in /var/log", "Investigate high CPU process PID 14502"],
+        flag: "FLAG{regreSSHion_2024_rce_pwned}"
+      },
+      procs: [], netConnections: [], interfaces: [], iptablesFilter: '', iptablesMangle: '',
+
+      tickNetworkTraffic(ifaceName = 'all', bytesRxInc = 1420, bytesTxInc = 840) {
+        this.interfaces.forEach(i => {
+          if (ifaceName === 'all' || i.name === ifaceName || (ifaceName === 'default' && i.name !== 'lo')) {
+            const rxRate = i.rx_rate || bytesRxInc;
+            const txRate = i.tx_rate || bytesTxInc;
+            i.rx_bytes += rxRate;
+            i.tx_bytes += txRate;
+            i.rx_packets += Math.floor(rxRate / 128) + 1;
+            i.tx_packets += Math.floor(txRate / 128) + 1;
+          }
+        });
+      },
+
+      tickProcessActivity() {
+        this.procs.forEach(p => {
+          if (p.cpu > 0) p.cpu = Math.max(0.1, +(p.cpu + (Math.random() * 0.8 - 0.4)).toFixed(1));
+        });
+      },
+
+      loadScenario(scenarioId) {
+        this.scenario = scenarioId;
+        const tmuxInd = document.getElementById('tmux-indicator');
+        if (tmuxInd) tmuxInd.classList.add('hidden');
+
+        const baseProcs = [
+          { pid: 1, user: 'root', pr: 20, ni: 0, virt: 16840, res: 4120, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:02', cmd: '/sbin/init' },
+          { pid: 2, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kthreadd]' },
+          { pid: 3, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_gp]' },
+          { pid: 4, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[rcu_par_gp]' },
+          { pid: 6, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kworker/0:0H-events_highpri]' },
+          { pid: 9, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[mm_percpu_wq]' },
+          { pid: 10, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:01', cmd: '[ksoftirqd/0]' },
+          { pid: 11, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'I', cpu: 0.0, mem: 0.0, time: '0:03', cmd: '[rcu_sched]' },
+          { pid: 12, user: 'root', pr: -100, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[migration/0]' },
+          { pid: 14, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kdevtmpfs]' },
+          { pid: 18, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kauditd]' },
+          { pid: 22, user: 'root', pr: 0, ni: -20, virt: 0, res: 0, s: 'I<', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[writeback]' },
+          { pid: 26, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'S', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[kcompactd0]' },
+          { pid: 28, user: 'root', pr: 20, ni: 0, virt: 0, res: 0, s: 'SN', cpu: 0.0, mem: 0.0, time: '0:00', cmd: '[khugepaged]' },
+          { pid: 312, user: 'root', pr: 20, ni: 0, virt: 28900, res: 9810, s: 'Ss', cpu: 0.1, mem: 0.5, time: '0:04', cmd: '/lib/systemd/systemd-journald' },
+          { pid: 348, user: 'root', pr: 20, ni: 0, virt: 22100, res: 6420, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: '/lib/systemd/systemd-udevd' },
+          { pid: 480, user: 'systemd-timesync', pr: 20, ni: 0, virt: 18400, res: 3120, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/lib/systemd/systemd-timesyncd' },
+          { pid: 512, user: 'systemd-resolve', pr: 20, ni: 0, virt: 24300, res: 8900, s: 'Ssl', cpu: 0.1, mem: 0.4, time: '0:02', cmd: '/lib/systemd/systemd-resolved' },
+          { pid: 620, user: 'syslog', pr: 20, ni: 0, virt: 224100, res: 4890, s: 'Ssl', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/rsyslogd -n -iNONE' },
+          { pid: 680, user: 'messagebus', pr: 20, ni: 0, virt: 12400, res: 4100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:00', cmd: '/usr/bin/dbus-daemon --system' },
+          { pid: 710, user: 'root', pr: 20, ni: 0, virt: 10400, res: 2890, s: 'Ss', cpu: 0.0, mem: 0.1, time: '0:00', cmd: '/usr/sbin/cron -f' },
+          { pid: 740, user: 'root', pr: 20, ni: 0, virt: 42100, res: 7420, s: 'Ssl', cpu: 0.0, mem: 0.4, time: '0:00', cmd: '/usr/libexec/accountsservice-daemon' },
+          { pid: 890, user: 'root', pr: 20, ni: 0, virt: 22400, res: 5100, s: 'Ss', cpu: 0.0, mem: 0.2, time: '0:01', cmd: '/usr/sbin/sshd -D' },
+          { pid: 910, user: 'root', pr: 20, ni: 0, virt: 48200, res: 12400, s: 'Ssl', cpu: 0.1, mem: 0.6, time: '0:03', cmd: '/usr/bin/python3 /usr/bin/fail2ban-server' },
+          { pid: 1020, user: 'postfix', pr: 20, ni: 0, virt: 38400, res: 6100, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:00', cmd: '/usr/lib/postfix/master -w' },
+          { pid: 1150, user: 'www-data', pr: 20, ni: 0, virt: 184500, res: 14200, s: 'Ss', cpu: 0.2, mem: 0.7, time: '0:05', cmd: '/usr/sbin/apache2 -k start' },
+          { pid: 1210, user: 'redis', pr: 20, ni: 0, virt: 62100, res: 11400, s: 'Ssl', cpu: 0.1, mem: 0.5, time: '0:02', cmd: '/usr/bin/redis-server 127.0.0.1:6379' },
+          { pid: 1410, user: 'root', pr: 20, ni: 0, virt: 24100, res: 7200, s: 'Ss', cpu: 0.0, mem: 0.3, time: '0:01', cmd: 'sshd: guest [priv]' },
+          { pid: 1415, user: 'guest', pr: 20, ni: 0, virt: 24100, res: 4800, s: 'S', cpu: 0.0, mem: 0.2, time: '0:00', cmd: 'sshd: guest@pts/0' },
+          { pid: 1420, user: 'guest', pr: 20, ni: 0, virt: 14200, res: 8400, s: 'Ss', cpu: 0.1, mem: 0.4, time: '0:00', cmd: '-bash' }
+        ];
+
+        const baseSockets = [
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '890/sshd' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp6', recv: 0, send: 0, local: ':::443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1150/apache2' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:3306', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1180/mysqld' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:6379', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1210/redis-server' },
+          { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'tcp6', recv: 0, send: 0, local: '::1:25', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1020/master' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.53:53', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '512/systemd-resolve' },
+          { proto: 'udp', recv: 0, send: 0, local: '0.0.0.0:68', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp', recv: 0, send: 0, local: '127.0.0.1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'udp6', recv: 0, send: 0, local: '::1:323', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '480/systemd-timesyn' },
+          { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '198.51.100.15:52104', state: 'ESTABLISHED', pid: '1410/sshd: guest' }
+        ];
+
+        if (scenarioId === 'regresshion') {
+          this.metadata = {
+            title: "CVE-2024-6387 regreSSHion",
+            difficulty: "Advanced",
+            description: "OpenSSH Signal Handler Race Condition vulnerability leading to unauthenticated RCE as root.",
+            objectives: ["Analyze running OpenSSH processes in ps aux", "Locate vulnerable glibc/sshd memory mapping in syslog", "Exfiltrate proof flag from /root/flag.txt"],
+            hints: ["Check auth.log in /var/log", "Investigate high CPU process PID 14502"],
+            flag: "FLAG{regreSSHion_2024_rce_pwned}"
+          };
+          this.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1420, tx_bytes: 1420, rx_packets: 14, tx_packets: 14, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING,MULTICAST', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 142050, tx_bytes: 98120, rx_packets: 1240, tx_packets: 980, rx_rate: 1420, tx_rate: 840 }
+          ];
+          this.procs = [
+            ...baseProcs,
+            { pid: 14502, user: 'sshd', pr: 20, ni: 0, virt: 18500, res: 6200, s: 'R', cpu: 85.4, mem: 0.3, time: '0:14', cmd: 'sshd: [accepted]' }
+          ];
+          this.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:22', foreign: '203.0.113.42:54321', state: 'ESTABLISHED', pid: '14502/sshd' }
+          ];
+        } else if (scenarioId === 'ligolo') {
+          this.metadata = {
+            title: "Ligolo-ng C2 Pivoting",
+            difficulty: "Intermediate",
+            description: "An active C2 agent has established a TUN interface to pivot inside internal subnet 10.10.0.0/24.",
+            objectives: ["Inspect active TUN interfaces using ifconfig / ip addr", "Examine routing table for 10.10.0.0/24", "Find C2 binary in /tmp/agent"],
+            hints: ["Run ifconfig to see tun0 interface traffic", "Use netstat -tulnp to see connected socket"],
+            flag: "FLAG{ligolo_ng_tun_pivot_mastered}"
+          };
+          this.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 400, tx_bytes: 400, rx_packets: 4, tx_packets: 4, rx_rate: 50, tx_rate: 50 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING,MULTICAST', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 84100, tx_bytes: 42100, rx_packets: 800, tx_packets: 410, rx_rate: 1100, tx_rate: 600 },
+            { name: 'tun0', flags: 'UP,POINTOPOINT,RUNNING,NOARP', mtu: 1500, inet: '10.10.0.1', netmask: '255.255.255.255', ether: '', rx_bytes: 51200, tx_bytes: 61400, rx_packets: 405, tx_packets: 512, rx_rate: 2048, tx_rate: 1024 }
+          ];
+          this.procs = [
+            ...baseProcs,
+            { pid: 1104, user: 'root', pr: 20, ni: 0, virt: 712000, res: 14200, s: 'Ssl', cpu: 1.2, mem: 0.6, time: '0:45', cmd: '/tmp/agent -connect 10.0.0.5:11601' }
+          ];
+          this.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.105:44812', foreign: '10.0.0.5:11601', state: 'ESTABLISHED', pid: '1104/agent' }
+          ];
+        } else if (scenarioId === 'log4shell') {
+          this.metadata = {
+            title: "Log4Shell (CVE-2021-44228)",
+            difficulty: "Intermediate",
+            description: "JNDI Remote Class Loading exploit triggered via HTTP header injection into Java application.",
+            objectives: ["Find malicious payload in log files", "Identify Java process listening on HTTP port", "Locate root flag"],
+            hints: ["Inspect /var/log/syslog with grep", "Check ps aux for java processes"],
+            flag: "FLAG{log4j_jndi_injection_successful}"
+          };
+          this.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1000, tx_bytes: 1000, rx_packets: 10, tx_packets: 10, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING', mtu: 1500, inet: '192.168.1.110', netmask: '255.255.255.0', ether: '52:54:00:88:99:aa', rx_bytes: 254100, tx_bytes: 184200, rx_packets: 2100, tx_packets: 1800, rx_rate: 1500, tx_rate: 900 }
+          ];
+          this.procs = [
+            ...baseProcs,
+            { pid: 4051, user: 'www-data', pr: 20, ni: 0, virt: 2450000, res: 185000, s: 'Ssl', cpu: 12.4, mem: 8.5, time: '2:15', cmd: 'java -jar /app/vulnerable-app.jar' }
+          ];
+          this.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:8080', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '4051/java' },
+            { proto: 'tcp', recv: 0, send: 0, local: '192.168.1.110:8080', foreign: '198.51.100.7:389', state: 'ESTABLISHED', pid: '4051/java' }
+          ];
+        } else if (scenarioId === 'net_pivot') {
+          this.metadata = {
+            title: "Net Pivot & Persistence",
+            difficulty: "Expert",
+            description: "Dual-homed router pivoting with socat port forwarders and persistent TMUX backdoors.",
+            objectives: ["Attach to existing TMUX session", "Identify socat port forwarders in ps aux", "Examine iptables MSS clamping rules"],
+            hints: ["Type tmux to attach", "Check iptables -t mangle -L"],
+            flag: "FLAG{net_pivot_persistence_mastered}"
+          };
+          this.interfaces = [
+            { name: 'lo', flags: 'UP,LOOPBACK,RUNNING', mtu: 65536, inet: '127.0.0.1', netmask: '255.0.0.0', ether: '', rx_bytes: 1000, tx_bytes: 1000, rx_packets: 10, tx_packets: 10, rx_rate: 100, tx_rate: 100 },
+            { name: 'eth0', flags: 'UP,BROADCAST,RUNNING', mtu: 1500, inet: '192.168.1.105', netmask: '255.255.255.0', ether: '52:54:00:12:34:56', rx_bytes: 90000, tx_bytes: 40000, rx_packets: 900, tx_packets: 400, rx_rate: 1200, tx_rate: 800 }
+          ];
+          this.procs = [
+            ...baseProcs,
+            { pid: 9912, user: 'guest', pr: 20, ni: 0, virt: 54100, res: 12100, s: 'Ss', cpu: 0.1, mem: 0.5, time: '1:12', cmd: 'tmux new-session -d -s backdoor' },
+            { pid: 9913, user: 'guest', pr: 20, ni: 0, virt: 14500, res: 8100, s: 'S', cpu: 0.0, mem: 0.4, time: '0:01', cmd: 'socat TCP-LISTEN:4444,fork TCP:10.0.0.25:80' }
+          ];
+          this.netConnections = [
+            ...baseSockets,
+            { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:4444', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '9913/socat' }
+          ];
+        }
+
+        vfs.resetForScenario(scenarioId);
+        document.getElementById('status-scenario').innerHTML = `<i class="fa-solid fa-biohazard"></i> ${this.metadata.title}`;
+        renderPrompt();
+      }
+    };
+
+    const vfs = {
+      root: null,
+      resetForScenario(scenarioId) {
+        const now = new Date().toISOString();
+        const defaultTmpFiles = {
+          '.X11-unix': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: {
+            'X0': { type: 'file', permissions: 'srwxrwxrwx', owner: 'root', group: 'root', mtime: now, content: '' }
+          }},
+          '.ICE-unix': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: {} },
+          'systemd-private-a38f9021-systemd-resolved.service-9fA1b2': { type: 'dir', permissions: 'rwx------', owner: 'root', group: 'root', mtime: now, children: {} },
+          'tmpx19a_lock': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: 'pid=1205\n' },
+          'sess_98a72b10f81d': { type: 'file', permissions: 'rw-------', owner: 'guest', group: 'guest', mtime: now, content: 'user_session=active_guest\n' }
+        };
+
+        if (scenarioId === 'ligolo') {
+          defaultTmpFiles['agent'] = { type: 'file', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, content: '#!/bin/sh\n# Ligolo-ng C2 TUN Pivot Agent\n/usr/bin/ligolo-agent -connect 10.0.0.5:11601 -ignore-cert\n' };
+        } else if (scenarioId === 'log4shell') {
+          defaultTmpFiles['hs_err_pid4051.log'] = { type: 'file', permissions: 'rw-r--r--', owner: 'www-data', group: 'www-data', mtime: now, content: '# Fatal error in Java Runtime Environment\n# JNDI lookup failed during payload extraction\n' };
+        } else if (scenarioId === 'net_pivot') {
+          defaultTmpFiles['socat_relay.sh'] = { type: 'file', permissions: 'rwxr-xr-x', owner: 'guest', group: 'guest', mtime: now, content: '#!/bin/bash\nsocat TCP-LISTEN:4444,fork TCP:10.0.0.25:80 &\n' };
+        }
+
+        this.root = {
+          type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now,
+          children: {
+            'etc': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'passwd': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: 'root:x:0:0:root:/root:/bin/bash\nguest:x:1000:1000:Guest User,,,:/home/guest:/bin/bash\n' },
+              'crontab': { type: 'file', permissions: 'rw-r--r--', owner: 'root', group: 'root', mtime: now, content: '# /etc/crontab\n17 * * * * root /usr/bin/sys-cleanup.sh\n' }
+            }},
+            'var': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'log': { type: 'dir', permissions: 'rwxrwxr-x', owner: 'root', group: 'syslog', mtime: now, children: {
+                'syslog': { type: 'file', permissions: 'rw-r-----', owner: 'syslog', group: 'adm', mtime: now, content: 'System initialized.\n' },
+                'auth.log': { type: 'file', permissions: 'rw-r-----', owner: 'syslog', group: 'adm', mtime: now, content: 'Jul 14 02:14:01 enclave sshd[14502]: Connection from 203.0.113.42 port 54321\nJul 14 02:14:02 enclave sshd[14502]: Fatal: Signal handler race condition (CVE-2024-6387)\n' }
+              }}
+            }},
+            'home': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'root', group: 'root', mtime: now, children: {
+              'guest': { type: 'dir', permissions: 'rwxr-xr-x', owner: 'guest', group: 'guest', mtime: now, children: {
+                'notes.txt': { type: 'file', permissions: 'rw-r--r--', owner: 'guest', group: 'guest', mtime: now, content: 'Welcome to the cyber exercise suite!\nInvestigate running services using system commands.\n' }
+              }}
+            }},
+            'root': { type: 'dir', permissions: 'rwx------', owner: 'root', group: 'root', mtime: now, children: {
+              'flag.txt': { type: 'file', permissions: 'rw-------', owner: 'root', group: 'root', mtime: now, content: SystemSim.metadata.flag + '\n' }
+            }},
+            'tmp': { type: 'dir', permissions: 'rwxrwxrwt', owner: 'root', group: 'root', mtime: now, children: defaultTmpFiles }
+          }
+        };
+      },
+
+      getNode(path) {
+        if (!path || path === '/') return this.root;
+        const parts = path.split('/').filter(Boolean);
+        let curr = this.root;
+        for (const part of parts) {
+          if (!curr || curr.type !== 'dir' || !curr.children || !(part in curr.children)) return null;
+          curr = curr.children[part];
+        }
+        return curr;
+      },
+
+      resolvePath(targetPath) {
+        if (!targetPath) return currentPwd;
+        if (targetPath.startsWith('~')) {
+          targetPath = currentPwd + targetPath.slice(1);
+        }
+        if (!targetPath.startsWith('/')) {
+          targetPath = (currentPwd === '/' ? '/' : currentPwd + '/') + targetPath;
+        }
+        const parts = targetPath.split('/').filter(Boolean);
+        const stack = [];
+        for (const p of parts) {
+          if (p === '.') continue;
+          if (p === '..') { if (stack.length) stack.pop(); }
+          else stack.push(p);
+        }
+        return '/' + stack.join('/');
+      }
+    };
+
+    let commandHistory = [];
+    let historyIndex = -1;
+    let currentUser = 'guest';
+    let currentPwd = '/home/guest';
+    let commandCount = 0;
+    let aliases = { 'll': 'ls -la', 'la': 'ls -A', 'cls': 'clear', 'p': 'pwd', '..': 'cd ..' };
+    let lastExitStatus = 0;
+
+    function focusInput() {
+      const input = document.getElementById('hidden-input');
+      if (input) input.focus();
+    }
+
+    function scrollTerminalToBottom() {
+      const term = document.getElementById('view-terminal');
+      if (term) {
+        term.scrollTop = term.scrollHeight;
+      }
+    }
+
+    function renderPrompt() {
+      const label = document.getElementById('prompt-label');
+      if (!label) return;
+      const host = 'enclave';
+      const path = currentPwd.replace('/home/guest', '~');
+      const symbol = currentUser === 'root' ? '#' : '$';
+      label.innerHTML = `<span class="text-user">${currentUser}@${host}</span>:<span class="text-path">${path}</span>${symbol}`;
+      document.getElementById('status-pwd').innerText = currentPwd;
+    }
+
+    function syncCaret() {
+      const input = document.getElementById('hidden-input');
+      const before = document.getElementById('cmd-text-before');
+      const indicator = document.getElementById('cursor-indicator');
+      const after = document.getElementById('cmd-text-after');
+
+      if (!input || !before || !indicator || !after) return;
+      const val = input.value;
+      const pos = input.selectionStart || 0;
+
+      before.textContent = val.slice(0, pos);
+      if (pos < val.length) {
+        indicator.textContent = val[pos];
+        after.textContent = val.slice(pos + 1);
+      } else {
+        indicator.innerHTML = '&nbsp;';
+        after.textContent = '';
+      }
+      scrollTerminalToBottom();
+    }
+
+    const input = document.getElementById('hidden-input');
+    if (input) {
+      input.addEventListener('input', syncCaret);
+      input.addEventListener('keyup', syncCaret);
+      input.addEventListener('click', syncCaret);
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const cmd = input.value;
+          input.value = '';
+          syncCaret();
+          executeCommandLine(cmd);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (commandHistory.length > 0) {
+            if (historyIndex < commandHistory.length - 1) historyIndex++;
+            input.value = commandHistory[commandHistory.length - 1 - historyIndex];
+            syncCaret();
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (historyIndex > 0) {
+            historyIndex--;
+            input.value = commandHistory[commandHistory.length - 1 - historyIndex];
+          } else if (historyIndex === 0) {
+            historyIndex = -1;
+            input.value = '';
+          }
+          syncCaret();
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          handleTabKey();
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'r') {
+          e.preventDefault();
+          triggerReverseSearch();
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+          e.preventDefault();
+          handleCtrlC();
+        }
+      });
+    }
+
+    function handleTabKey() {
+      const input = document.getElementById('hidden-input');
+      const raw = input.value;
+      const parts = raw.split(' ');
+      
+      if (parts.length === 1) {
+        const cmdList = Object.keys(commands).concat(Object.keys(aliases));
+        const matches = cmdList.filter(c => c.startsWith(parts[0]));
+        if (matches.length === 1) {
+          input.value = matches[0] + ' ';
+        }
+      } else {
+        const target = parts[parts.length - 1];
+        const resolved = vfs.resolvePath(target);
+        const parentPath = resolved.substring(0, resolved.lastIndexOf('/')) || '/';
+        const parentNode = vfs.getNode(parentPath);
+        if (parentNode && parentNode.children) {
+          const searchPrefix = target.substring(target.lastIndexOf('/') + 1);
+          const matches = Object.keys(parentNode.children).filter(k => k.startsWith(searchPrefix));
+          if (matches.length === 1) {
+            parts[parts.length - 1] = target.substring(0, target.lastIndexOf('/') + 1) + matches[0];
+            if (parentNode.children[matches[0]].type === 'dir') parts[parts.length - 1] += '/';
+            input.value = parts.join(' ');
+          }
+        }
+      }
+      syncCaret();
+    }
+
+    function handleCtrlC() {
+      printOutput(`^C`);
+      document.getElementById('hidden-input').value = '';
+      syncCaret();
+    }
+
+    function triggerReverseSearch() {
+      const term = prompt("(reverse-i-search):");
+      if (term) {
+        const found = commandHistory.slice().reverse().find(c => c.includes(term));
+        if (found) {
+          input.value = found;
+          syncCaret();
+        }
+      }
+    }
+
+    function printOutput(htmlStr) {
+      const out = document.getElementById('terminal-output');
+      if (!out) return;
+      const div = document.createElement('div');
+      div.className = 'whitespace-pre-wrap font-mono text-xs leading-relaxed';
+      div.innerHTML = htmlStr;
+      out.appendChild(div);
+      scrollTerminalToBottom();
+    }
+
+    function executeCommandLine(rawCmd) {
+      const trimmed = rawCmd.trim();
+      if (!trimmed) return;
+
+      commandHistory.push(trimmed);
+      historyIndex = -1;
+      commandCount++;
+      document.getElementById('cmd-count').innerText = commandCount;
+
+      const host = 'enclave';
+      const path = currentPwd.replace('/home/guest', '~');
+      const symbol = currentUser === 'root' ? '#' : '$';
+      printOutput(`<span class="text-user">${currentUser}@${host}</span>:<span class="text-path">${path}</span>${symbol} ${trimmed}`);
+
+      let cmdToRun = trimmed;
+      const firstToken = cmdToRun.split(' ')[0];
+      if (aliases[firstToken]) {
+        cmdToRun = aliases[firstToken] + cmdToRun.slice(firstToken.length);
+      }
+
+      const args = cmdToRun.split(' ').filter(Boolean);
+      const cmdName = args[0];
+
+      if (commands[cmdName]) {
+        try {
+          commands[cmdName](args.slice(1));
+          lastExitStatus = 0;
+        } catch (e) {
+          printOutput(`bash: ${cmdName}: error executing command`);
+          lastExitStatus = 1;
+        }
+      } else {
+        printOutput(`bash: ${cmdName}: command not found`);
+        lastExitStatus = 127;
+      }
+      document.getElementById('last-exit-status').innerText = lastExitStatus;
+      renderPrompt();
+    }
+
+    const commands = {
+      clear() {
+        document.getElementById('terminal-output').innerHTML = '';
+      },
+
+      pwd() {
+        printOutput(currentPwd);
+      },
+
+      cd(args) {
+        const target = args[0] || '~';
+        const resolved = vfs.resolvePath(target);
+        const node = vfs.getNode(resolved);
+        if (node && node.type === 'dir') {
+          currentPwd = resolved;
+        } else {
+          printOutput(`bash: cd: ${target}: No such file or directory`);
+        }
+      },
+
+      ls(args) {
+        const node = vfs.getNode(currentPwd);
+        if (!node || !node.children) return;
+        const showAll = args.includes('-a') || args.includes('-la') || args.includes('-A');
+        const showLong = args.includes('-l') || args.includes('-la');
+
+        let entries = Object.keys(node.children);
+        if (!showAll) entries = entries.filter(e => !e.startsWith('.'));
+
+        if (showLong) {
+          let out = `total ${entries.length * 4}\n`;
+          entries.forEach(e => {
+            const child = node.children[e];
+            const isDir = child.type === 'dir';
+            out += `${isDir ? 'd' : '-'}${child.permissions} 1 ${child.owner} ${child.group} 4096 Jul 14 02:00 ${isDir ? `<span class="file-dir">${e}</span>` : e}\n`;
+          });
+          printOutput(out);
+        } else {
+          const out = entries.map(e => {
+            const child = node.children[e];
+            return child.type === 'dir' ? `<span class="file-dir">${e}</span>` : e;
+          }).join('  ');
+          printOutput(out);
+        }
+      },
+
+      cat(args) {
+        if (!args.length) return;
+        const resolved = vfs.resolvePath(args[0]);
+        const node = vfs.getNode(resolved);
+        if (node && node.type === 'file') {
+          printOutput(node.content || '');
+        } else {
+          printOutput(`cat: ${args[0]}: No such file or directory`);
+        }
+      },
+
+      ps(args) {
+        SystemSim.tickProcessActivity();
+        let out = `PID USER       PR  NI    VIRT    RES SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
+        SystemSim.procs.forEach(p => {
+          out += `${p.pid.toString().padStart(5)} ${p.user.padEnd(10)} 20   0 ${p.virt.toString().padStart(7)} ${p.res.toString().padStart(6)} 2000 ${p.s}  ${p.cpu.toFixed(1).padStart(5)}  ${p.mem.toFixed(1).padStart(5)}   ${p.time} ${p.cmd}\n`;
+        });
+        printOutput(out);
+      },
+
+      netstat(args) {
+        SystemSim.tickNetworkTraffic('default', 1400, 800);
+        let out = `Active Internet connections (servers and established)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name\n`;
+        SystemSim.netConnections.forEach(s => {
+          out += `${s.proto.padEnd(5)} ${s.recv.toString().padStart(6)} ${s.send.toString().padStart(6)} ${s.local.padEnd(23)} ${s.foreign.padEnd(23)} ${s.state.padEnd(11)} ${s.pid}\n`;
+        });
+        printOutput(out);
+      },
+
+      ifconfig(args) {
+        SystemSim.tickNetworkTraffic('default', 2100, 1100);
+        let out = '';
+        SystemSim.interfaces.forEach(i => {
+          out += `${i.name}: flags=4163<${i.flags}>  mtu ${i.mtu}\n`;
+          if (i.inet) out += `        inet ${i.inet}  netmask ${i.netmask}\n`;
+          if (i.ether) out += `        ether ${i.ether}  txqueuelen 1000\n`;
+          out += `        RX packets ${i.rx_packets}  bytes ${i.rx_bytes}\n`;
+          out += `        TX packets ${i.tx_packets}  bytes ${i.tx_bytes}\n\n`;
+        });
+        printOutput(out);
+      },
+
+      ip(args) {
+        commands.ifconfig(args);
+      },
+
+      sudo(args) {
+        if (!args.length) return;
+        if (args[0] === '-i' || args[0] === 'su') {
+          currentUser = 'root';
+          printOutput(`Switched to superuser environment.`);
+        } else {
+          currentUser = 'root';
+          executeCommandLine(args.join(' '));
+          currentUser = 'guest';
+        }
+      },
+
+      alias(args) {
+        if (!args.length) {
+          let out = '';
+          Object.keys(aliases).forEach(k => out += `alias ${k}='${aliases[k]}'\n`);
+          printOutput(out);
+        } else {
+          const str = args.join(' ');
+          const idx = str.indexOf('=');
+          if (idx !== -1) {
+            const k = str.slice(0, idx).trim();
+            const v = str.slice(idx + 1).replace(/['"]/g, '').trim();
+            aliases[k] = v;
+          }
+        }
+      },
+
+      man(args) {
+        if (!args.length) { printOutput(`What manual page do you want?`); return; }
+        const cmd = args[0];
+        if (manPages[cmd]) printOutput(manPages[cmd]);
+        else printOutput(`No manual entry for ${cmd}`);
+      }
+    };
+
+    function changeTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+    }
+
+    function toggleCRT() {
+      document.body.classList.toggle('scanlines');
+    }
+
+    function showObjectivesModal() {
+      const m = SystemSim.metadata;
+      document.getElementById('obj-modal-title').innerText = m.title;
+      document.getElementById('obj-modal-desc').innerText = m.description;
+      
+      const list = document.getElementById('obj-modal-list');
+      list.innerHTML = m.objectives.map(o => `<li>${o}</li>`).join('');
+
+      const hints = document.getElementById('obj-modal-hints');
+      hints.innerHTML = m.hints.map((h, idx) => `
+        <li class="bg-slate-950 p-2 rounded border border-slate-800 cursor-pointer text-amber-300" onclick="this.innerText='${h}'">
+          <i class="fa-solid fa-lightbulb me-1"></i> Hint #${idx + 1} (Click to reveal)
+        </li>
+      `).join('');
+
+      document.getElementById('objectives-modal').classList.remove('hidden');
+    }
+
+    function closeObjectivesModal() {
+      document.getElementById('objectives-modal').classList.add('hidden');
+    }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data && data.metadata) {
+            SystemSim.metadata = data.metadata;
+            if (data.procs) SystemSim.procs = data.procs;
+            if (data.netConnections) SystemSim.netConnections = data.netConnections;
+            if (data.interfaces) SystemSim.interfaces = data.interfaces;
+            printOutput(`Successfully loaded scenario: ${data.metadata.title}`);
+            showObjectivesModal();
+          }
+        } catch(err) {
+          printOutput(`Error importing scenario file.`);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.onload = function() {
+      SystemSim.loadScenario('regresshion');
+      renderPrompt();
+      focusInput();
+      setInterval(() => {
+        const sec = Math.floor(performance.now() / 1000);
+        const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        const counter = document.getElementById('uptime-counter');
+        if (counter) counter.innerText = `${h}:${m}:${s}`;
+      }, 1000);
+    };
+  </script>
+</body>
+</html>
